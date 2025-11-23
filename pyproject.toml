@@ -5,6 +5,7 @@ description = "CLI tool for Bible studies"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "click>=8.3.1",
     "loguru>=0.7.3",
     "pytest>=9.0.1",
     "requests>=2.32.5",
@@ -18,7 +19,7 @@ build-backend = "hatchling.build"
 packages = ["app"]
 
 [project.scripts]
-clible = "app.main:main"
+clible = "app.cli:cli"
 
 [tool.pytest.ini_options]
 pythonpath = ["app"]
