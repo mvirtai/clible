@@ -9,6 +9,7 @@ dependencies = [
     "loguru>=0.7.3",
     "pytest>=9.0.1",
     "requests>=2.32.5",
+    "rich>=14.2.0",
 ]
 
 [build-system]
