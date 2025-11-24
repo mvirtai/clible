@@ -49,6 +49,7 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
     if output == "json":
         click.echo(json.dumps(verse_data, indent=2))
     elif output == "text":
+        print()
         console.print(render_text_output(verse_data))
         # click.echo(f"{verse_data.get('reference', 'Unknown')}")
         # click.echo(f"{verse_data.get('text').strip()}\n")

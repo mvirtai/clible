@@ -2,6 +2,7 @@ from rich.console import Console, Group
 from rich.text import Text
 from rich.panel import Panel
 from rich.align import Align
+from rich.padding import Padding
 
 
 console = Console()
@@ -9,20 +10,22 @@ console = Console()
 def render_text_output(data: dict) -> Panel:
     reference = data.get('reference', 'Unknown reference').lower().strip()
     translation = data.get('translation_name', '').strip()
-    header = Text(reference, style='bold cyan')
 
-    if translation:
-        header.append(f" • {translation}", style="italic green")
-    
+    title = Text(reference.upper(), style="bold blue")
+    subtitle = Text(translation, style="italic blue")
+
     body_lines = []
-
-    for verse in data.get('verses', []):
+    for verse in data.get("verses", []):
         num = f"{verse['verse']:>3}"
         text = verse.get('text', '').strip()
-        body_lines.append(Text(f"{num}  {text}"))
+        line = Text()
+        line.append(num, style="bold green")
+        line.append("   ")
+        line.append(text)
+        body_lines.append(line)
     
     body = Group(*body_lines)
-    return Panel(body, title=reference, subtitle=translation, expand=False)
+    return Panel(Padding(body, (1, 2)), title=title, subtitle=subtitle, expand=False)
 
 
 def format_url(book: str, chapter: str, verses: str) -> str:
