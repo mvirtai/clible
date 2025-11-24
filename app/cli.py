@@ -4,32 +4,61 @@ import click
 from app.api import fetch_verse_by_reference
 
 
-@click.command()
-@click.option('--book', '-b', prompt='Book', help='Bible book name (e.g. John)')
-@click.option('--chapter', '-c', prompt='Chapter', help='Chapter number')
-@click.option('--verses', '-v', prompt='Verse', help='Verse number(s), e.g. 1 or 1-6')
-@click.option('--output', '-o', type=click.Choice(['json', 'text']), default='json', help='Output format')
-def cli(book: str, chapter: str, verses: str, output: str):
+def run_menu(output: str):
+    MENU = """
+    === clible menu ===
+    [1] Fetch verse by reference
+    [0] Exit
     """
-    CLI tool for fetching Bible verses from bible-api.com safely.
-    """
-    book = book.strip().lower()
-    chapter = chapter.strip()
-    verses = verses.strip()
+    while True:
+        click.echo(MENU)
+        choice = click.prompt("Select option", type=int)
+
+        if choice == 1:
+            handle_fetch(
+                book=None,
+                chapter=None,
+                verses=None,
+                output=output,
+            )
+        elif choice == 0:
+            click.echo("Bye!")
+            break
+        else:
+            click.echo("Invalid choice, try again.")
+
+
+def handle_fetch(book: str | None, chapter: str | None, verses: str | None, output: str | None) -> None:
+    book = book or click.prompt("Book").strip().lower()
+    chapter = chapter or click.prompt("Chapter").strip()
+    verses = verses or click.prompt("Verses").strip()
+
+
 
     verse_data = fetch_verse_by_reference(book, chapter, verses)
 
-    if verse_data:
-        if output == 'json':
-            click.echo(json.dumps(verse_data, indent=2))
-        else:
-            # Tekstimuotoinen output
-            click.echo(f"\n{verse_data.get('reference', 'Unknown')}")
-            click.echo(f"\n{verse_data.get('text', '').strip()}\n")
-    else:
-        click.echo("Failed to feth verse. Check logs for details.")
-        raise click.Abort()
+    if not verse_data:
+        click.echo("Failed to fetch verse. Check logs for details.")
+        return
     
+    if output == "json":
+        click.echo(json.dumps(verse_data, indent=2))
+    else:
+        click.echo(f"{verse_data.get('reference', 'Unknown')}")
+        click.echo(f"{verse_data.get('text').strip()}\n")
+
+
+@click.command()
+@click.option('--book', '-b', default=None, help='Bible book name (e.g. John)')
+@click.option('--chapter', '-c', default=None, help='Chapter number')
+@click.option('--verses', '-v', default=None, help='Verse number(s), e.g. 1 or 1-6')
+@click.option('--output', '-o', type=click.Choice(['json', 'text']), default='json', help='Output format')
+def cli(book, chapter, verses, output):
+    if book and chapter and verses:
+        handle_fetch(book, chapter, verses, output)
+    else:
+        run_menu(output)
+
 
 if __name__ == "__main__":
     cli()
