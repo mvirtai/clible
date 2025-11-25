@@ -31,7 +31,7 @@ def render_text_output(data: dict) -> Panel:
     return Panel(Padding(
         body, (2, 2)), 
         title=f"[bold magenta]{data.get('reference')}[/bold magenta]", 
-        subtitle=f"[italic cyan]{data.get('translation_name')}[italic cyan]", 
+        subtitle=f"[italic cyan]{data.get('translation_name')}[/italic cyan]", 
         expand=False)
 
 

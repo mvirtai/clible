@@ -3,7 +3,7 @@ import requests
 from loguru import logger
 from pathlib import Path
 
-mock_data_path = Path.home() / "clible" / "app" / "data" / "mock_data.json"
+mock_data_path = Path(__file__).resolve().parent / "data" / "mock_data.json"
 
 
 BASE_URL = "http://bible-api.com"
