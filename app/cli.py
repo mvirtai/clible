@@ -33,14 +33,14 @@ def run_menu(output: str):
             click.echo("Invalid choice, try again.")
 
 
-def handle_fetch(book: str | None, chapter: str | None, verses: str | None, output: str | None) -> None:
+def handle_fetch(book: str | None, chapter: str | None, verses: str | None, output: str | None, use_mock: bool = False) -> None:
     book = book or click.prompt("Book").strip().lower()
     chapter = chapter or click.prompt("Chapter").strip()
     verses = verses or click.prompt("Verses").strip()
 
 
 
-    verse_data = fetch_verse_by_reference(book, chapter, verses)
+    verse_data = fetch_verse_by_reference(book, chapter, verses, use_mock)
 
     if not verse_data:
         click.echo("Failed to fetch verse. Check logs for details.")
@@ -61,9 +61,12 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
 @click.option('--chapter', '-c', default=None, help='Chapter number')
 @click.option('--verses', '-v', default=None, help='Verse number(s), e.g. 1 or 1-6')
 @click.option('--output', '-o', type=click.Choice(['json', 'text']), default='text', help='Output format')
-def cli(book, chapter, verses, output):
+@click.option('--use-mock/--no-use-mock', '-um/-NUM', default=False, show_default=True, help='Load verses from mock_data.json instead of API')
+def cli(book, chapter, verses, output, use_mock):
     if book and chapter and verses:
-        handle_fetch(book, chapter, verses, output)
+        handle_fetch(book, chapter, verses, output, use_mock)
+    elif use_mock:
+        handle_fetch(book='John', chapter='3', verses='16', output='text', use_mock=True)
     else:
         run_menu(output)
 

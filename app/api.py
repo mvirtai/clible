@@ -9,20 +9,21 @@ mock_data_path = Path.home() / "clible" / "app" / "data" / "mock_data.json"
 BASE_URL = "http://bible-api.com"
 
 
-def fetch_verse_by_reference(book: str, chapter: str, verses: str) -> dict:
-    use_mock = True
-
+def fetch_verse_by_reference(book: str, chapter: str, verses: str, use_mock: bool = False) -> dict:
     if use_mock:
         logger.info(f"Using mock data from path {mock_data_path}")
         
-        with open(mock_data_path, "r", encoding="utf-8") as json_file:
-            data = json.load(json_file)
-        
-        logger.info(f"File's type: {type(data)}")
-        print(data)
-
+        try:
+            with open(mock_data_path, "r", encoding="utf-8") as json_file:
+                data = json.load(json_file)
+        except FileNotFoundError:
+            logger.error(f"Mock data file missing at {mock_data_path}")
+            return None
+        except json.JSONDecodeError as exc:
+            logger.error(f"Invalid JSON in mock data: {exc}")
+            return None
+        return data
     else:
-
         url = f"{BASE_URL}/{book}+{chapter}:{verses}"
         logger.info(f"Fetching data from {url}")
         
