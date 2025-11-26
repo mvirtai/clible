@@ -61,12 +61,12 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
 @click.option('--chapter', '-c', default=None, help='Chapter number')
 @click.option('--verses', '-v', default=None, help='Verse number(s), e.g. 1 or 1-6')
 @click.option('--output', '-o', type=click.Choice(['json', 'text']), default='text', help='Output format')
-@click.option('--use-mock/--no-use-mock', '-um/-NUM', default=False, show_default=True, help='Load verses from mock_data.json instead of API')
+@click.option('--use-mock/--no-use-mock', '-um/-UM', default=False, show_default=True, help='Load verses from mock_data.json instead of API')
 def cli(book, chapter, verses, output, use_mock):
     if book and chapter and verses:
         handle_fetch(book, chapter, verses, output, use_mock)
     elif use_mock:
-        handle_fetch(book='John', chapter='3', verses='16', output='text', use_mock=True)
+        handle_fetch(book='John', chapter='3', verses='16', output=output, use_mock=True)
     else:
         run_menu(output)
 
