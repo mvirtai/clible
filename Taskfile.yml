@@ -1,0 +1,46 @@
+# https://taskfile.dev
+
+version: '3'
+
+
+silent: true
+
+vars:
+  REGISTRY: '{{.REGISTRY | default (env "REGISTRY") | default "docker.io" }}' 
+  DOCKER_USER: '{{env "DOCKER_USER"}}'
+  IMAGE: '{{.DOCKER_USER}}/clible'
+  COMMIT: 
+    sh: git rev-parse --short HEAD
+  TAG: "{{.COMMIT}}"
+  PROMO_TAG: latest
+  
+tasks:
+  default:
+    cmds:
+      - echo "{{.GREETING}}"
+  
+  show-image:
+    desc: Print fully-qualified image references
+    cmds:
+      - echo "{{.REGISTRY}}/{{.IMAGE}}:{{.TAG}}"
+      - echo "{{.REGISTRY}}/{{.IMAGE}}:{{.PROMO_TAG}}"
+
+  build:
+    desc: "Build Docker image"
+    deps: []
+    cmds:
+      - docker build -t {{.REGISTRY}}/{{.IMAGE}}:{{.TAG}} .
+  
+  tag:
+    desc: Re-tag existing image (e.g. latest)
+    deps: [build]
+    cmds:
+      - docker tag {{.REGISTRY}}/{{.IMAGE}}:{{.TAG}} {{.REGISTRY}}/{{.IMAGE}}:{{.PROMO_TAG}}
+      - echo "Tagged {{.REGISTRY}}/{{.IMAGE}}:{{.TAG}} -> {{.PROMO_TAG}}"
+  
+  push:
+    desc: Push both commit and promo tags
+    deps: [tag]
+    cmds:
+      - docker push {{.REGISTRY}}/{{.IMAGE}}:{{.TAG}}
+      - docker push {{.REGISTRY}}/{{.IMAGE}}:{{.PROMO_TAG}}
