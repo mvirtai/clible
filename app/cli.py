@@ -40,6 +40,8 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
     chapter = chapter or click.prompt("Chapter", type=ChapterParam())
     verses = verses or click.prompt("Verses", type=VersesParam())
 
+
+
     verse_data = fetch_verse_by_reference(book, chapter, verses, use_mock)
 
     if not verse_data:
