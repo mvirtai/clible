@@ -20,4 +20,5 @@ COPY --from=builder /workspace/app /workspace/app
 
 ENV PATH="/workspace/.venv/bin:$PATH"
 
-CMD ["python", "-m", "app.cli"]
+ENTRYPOINT [ "python", "-m", "app.cli" ]
+CMD []
