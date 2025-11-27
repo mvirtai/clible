@@ -5,7 +5,7 @@ from loguru import logger
 
 from app.api import fetch_verse_by_reference
 from app.utils import render_text_output
-
+from app.db import QueryDB
 
 console = Console()
 
@@ -38,8 +38,6 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
     chapter = chapter or click.prompt("Chapter").strip()
     verses = verses or click.prompt("Verses").strip()
 
-
-
     verse_data = fetch_verse_by_reference(book, chapter, verses, use_mock)
 
     if not verse_data:
@@ -51,8 +49,19 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
     elif output == "text":
         print()
         console.print(render_text_output(verse_data))
-        # click.echo(f"{verse_data.get('reference', 'Unknown')}")
-        # click.echo(f"{verse_data.get('text').strip()}\n")
+        print()
+
+        while True:
+            choice = input("Do you want to save the result? [y/N] ").strip().lower()
+            if choice in ("y", "n", ""):
+                break
+            print("Please enter y or N.")
+        
+        if choice == "y":
+            db = QueryDB()
+            db.save_query(verse_data)
+            
+
     else:
         logger.error(f"Invalid output choice in flag --output or -o: {output}")
 

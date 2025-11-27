@@ -23,31 +23,51 @@ class QueryDB:
         """)
     
 
-    def _build_snippet(self, verses: list[str]) -> str:
+    def _build_snippet(self, reference: str, verses: list[str]) -> str:
         cleaned = [" ".join(v.get("text", "").split()) for v in verses]
         combined = " ".join(cleaned)
-        return shorten(combined, width=200, placeholder="...")
+        text_snippet = shorten(combined, width=200, placeholder="...")
+        return f"{reference}: {text_snippet}"
 
 
     def save_query(self, data: dict) -> None:
         reference = data.get('reference', 'Unknown reference').strip()
         verses = data.get('verses', [])
-        snippet = self.build_snippet(verses) if verses else 'No verse text'
-        timestamp = datetime.utcnow().isoformat()
+        snippet = self._build_snippet(reference, verses) if verses else f"{reference}: No verse text"
 
+        full_text = " ".join([" ".join(v.get("text", "").split()) for v in verses]) if verses else "No verse text"
+
+        timestamp = datetime.utcnow().isoformat()
         self.cur.execute(
         """
         INSERT INTO queries (query_text, result_snippet, created_at)
         VALUES (?, ?, ?)
         """,
-        (reference, snippet, timestamp)
+        (full_text, snippet, timestamp)
     )
+        logger.info(f"Saved verses from {reference} into database!")
         self.conn.commit()
+        self.close()
+
+
+    def show_all_saved_queries(self) -> list[dict]:
+        self.cur.execute("SELECT * FROM queries")
+        rows = self.cur.fetchall()
+        return [dict(row) for row in rows]
+
+
+    def close(self):
+        self.conn.close()
+        logger.info("Closed connection")
 
 
 if __name__ == "__main__":
-    from app.api import fetch_verse_by_reference
-    verse_data = fetch_verse_by_reference(use_mock=True, output='text')
+    # from app.api import fetch_verse_by_reference
+    # verse_data = fetch_verse_by_reference(book='John', chapter='3', verses='16', use_mock=True)
     db = QueryDB()
-    snippet = db._build_snippet(verse_data.get('verses', []))
-    logger.info(f"Snippet: {snippet}")
+    # reference = verse_data.get('reference', 'Unknown reference')
+    # snippet = db._build_snippet(reference, verse_data.get('verses', []))
+    # logger.info(f"Snippet: {snippet}")
+
+    all_saved_verses = db.show_all_saved_queries()
+    print(all_saved_verses)
