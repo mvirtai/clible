@@ -1,5 +1,9 @@
 import click
+<<<<<<< HEAD
 from app.validations.validations import validate_books, validate_chapter, validate_verses
+=======
+from app.validations.validations import validate_books, validate_chapter
+>>>>>>> 79ce083 (Refactor CLI input handling to use custom parameter types for book and chapter validation)
 
 
 class BookParam(click.ParamType):
@@ -21,6 +25,7 @@ class ChapterParam(click.ParamType):
         if is_valid:
             return payload
         self.fail(payload, param, ctx)
+<<<<<<< HEAD
 
 
 class VersesParam(click.ParamType):
@@ -33,3 +38,5 @@ class VersesParam(click.ParamType):
             return payload
         self.fail(payload, param, ctx)
 
+=======
+>>>>>>> 79ce083 (Refactor CLI input handling to use custom parameter types for book and chapter validation)

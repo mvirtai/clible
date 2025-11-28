@@ -5,7 +5,11 @@ from app.validations.validation_lists import books_list
 CHAPTERS_MIN = 1
 CHAPTER_MAX = 150
 VERSES_MIN = 1
+<<<<<<< HEAD
 VERSES_MAX = 175
+=======
+VERSES_MAX = 176
+>>>>>>> 79ce083 (Refactor CLI input handling to use custom parameter types for book and chapter validation)
 
 
 def validate_books(book_ref: str) -> bool:
@@ -16,6 +20,7 @@ def validate_books(book_ref: str) -> bool:
 
 
 def validate_chapter(chapter: str) -> (bool, str):
+<<<<<<< HEAD
     chapter = chapter.strip()
     if not chapter.isnumeric():
         try:
@@ -71,6 +76,16 @@ def validate_verses(verses: str) -> (bool, str):
     return (True, normalized)
 
 
+=======
+    if not chapter.isnumeric():
+        return (False, "Chapter is not numeric value")
+    if int(chapter) not in range(CHAPTERS_MIN, CHAPTER_MAX):
+        return (False, f"Chapter is either less than {CHAPTERS_MIN} or more than {CHAPTER_MAX}")
+    # palautetaan str-arvona, koska käyttötarkoitus (esim. url-parametri) vaatii str, ei int
+    return (True, chapter)
+
+
+>>>>>>> 79ce083 (Refactor CLI input handling to use custom parameter types for book and chapter validation)
 if __name__ == "__main__":
     result = validate_books("JOhn1")
     logger.debug(f"result: {result}")
