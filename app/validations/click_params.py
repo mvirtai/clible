@@ -1,5 +1,5 @@
 import click
-from app.validations.validations import validate_books, validate_chapter
+from app.validations.validations import validate_books, validate_chapter, validate_verses
 
 
 class BookParam(click.ParamType):
@@ -21,3 +21,15 @@ class ChapterParam(click.ParamType):
         if is_valid:
             return payload
         self.fail(payload, param, ctx)
+
+
+class VersesParam(click.ParamType):
+    name = "verses"
+
+    def convert(self, value, param, ctx):
+        normalized = value.strip()
+        is_valid, payload = validate_verses(normalized)
+        if is_valid:
+            return payload
+        self.fail(payload, param, ctx)
+

@@ -5,7 +5,7 @@ from loguru import logger
 
 from app.api import fetch_verse_by_reference
 from app.utils import render_text_output
-from app.validations.click_params import BookParam, ChapterParam
+from app.validations.click_params import BookParam, ChapterParam, VersesParam
 
 from app.db import QueryDB
 
@@ -38,7 +38,7 @@ def run_menu(output: str):
 def handle_fetch(book: str | None, chapter: str | None, verses: str | None, output: str | None, use_mock: bool = False) -> None:
     book = click.prompt("Book", type=BookParam())
     chapter = click.prompt("Chapter", type=ChapterParam())
-    verses = verses or click.prompt("Verses").strip()
+    verses = click.prompt("Verses", type=VersesParam())
 
     verse_data = fetch_verse_by_reference(book, chapter, verses, use_mock)
 
