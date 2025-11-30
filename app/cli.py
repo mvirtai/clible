@@ -5,7 +5,7 @@ from loguru import logger
 
 from app.api import fetch_verse_by_reference
 from app.utils import render_text_output
-from app.validations.click_params import BookParam, ChapterParam
+from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.db import QueryDB
 
 console = Console()
