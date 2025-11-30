@@ -1,14 +1,5 @@
 import click
-<<<<<<< HEAD
-<<<<<<< HEAD
 from app.validations.validations import validate_books, validate_chapter, validate_verses
-=======
-from app.validations.validations import validate_books, validate_chapter
->>>>>>> 79ce083 (Refactor CLI input handling to use custom parameter types for book and chapter validation)
-=======
-from app.validations.validations import validate_books, validate_chapter, validate_verses
->>>>>>> f407d63 (Enhanced CLI logic by adding custom click.Types for parameters. Added validations for those parameters and added tests for those validation functions.)
-
 
 class BookParam(click.ParamType):
    name = "book"
@@ -29,11 +20,6 @@ class ChapterParam(click.ParamType):
         if is_valid:
             return payload
         self.fail(payload, param, ctx)
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> f407d63 (Enhanced CLI logic by adding custom click.Types for parameters. Added validations for those parameters and added tests for those validation functions.)
-
 
 class VersesParam(click.ParamType):
     name = "verses"
@@ -45,8 +31,3 @@ class VersesParam(click.ParamType):
             return payload
         self.fail(payload, param, ctx)
 
-<<<<<<< HEAD
-=======
->>>>>>> 79ce083 (Refactor CLI input handling to use custom parameter types for book and chapter validation)
-=======
->>>>>>> f407d63 (Enhanced CLI logic by adding custom click.Types for parameters. Added validations for those parameters and added tests for those validation functions.)
