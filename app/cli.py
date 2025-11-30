@@ -36,9 +36,9 @@ def run_menu(output: str):
 
 
 def handle_fetch(book: str | None, chapter: str | None, verses: str | None, output: str | None, use_mock: bool = False) -> None:
-    book = click.prompt("Book", type=BookParam())
-    chapter = click.prompt("Chapter", type=ChapterParam())
-    verses = click.prompt("Verses", type=VersesParam())
+    book = book or click.prompt("Book", type=BookParam())
+    chapter = chapter or click.prompt("Chapter", type=ChapterParam())
+    verses = verses or click.prompt("Verses", type=VersesParam())
 
     verse_data = fetch_verse_by_reference(book, chapter, verses, use_mock)
 
@@ -70,7 +70,7 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
 @click.command()
 @click.option('--book', '-b', default=None, type=BookParam(), help='Bible book name (e.g. John)')
 @click.option('--chapter', '-c', default=None, type=ChapterParam(), help='Chapter number')
-@click.option('--verses', '-v', default=None, help='Verse number(s), e.g. 1 or 1-6')
+@click.option('--verses', '-v', default=None, type=VersesParam(), help='Verse number(s), e.g. 1 or 1-6')
 @click.option('--output', '-o', type=click.Choice(['json', 'text']), default='text', help='Output format')
 @click.option('--use-mock/--no-use-mock', '-um/-UM', default=False, show_default=True, help='Load verses from mock_data.json instead of API')
 def cli(book, chapter, verses, output, use_mock):
