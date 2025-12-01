@@ -6,13 +6,16 @@ from loguru import logger
 from app.api import fetch_verse_by_reference
 from app.utils import render_text_output
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
-from app.db import QueryDB
+from app.db.queries import QueryDB
+from app.db.connection import get_connection
+from app.db.schema import init_db
 
 console = Console()
 
 def run_menu(output: str):
     MENU = """
     === clible menu ===
+    [2] Show all saved verses
     [1] Fetch verse by reference
     [0] Exit
     """
@@ -68,6 +71,13 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
         logger.error(f"Invalid output choice in flag --output or -o: {output}")
 
 
+
+def handle_save(verse_data: dict) -> None:
+    db = QueryDB()
+
+    conn = get_connection()
+    
+  
 @click.command()
 @click.option('--book', '-b', default=None, type=BookParam(), help='Bible book name (e.g. John)')
 @click.option('--chapter', '-c', default=None, type=ChapterParam(), help='Chapter number')
