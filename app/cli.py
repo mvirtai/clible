@@ -1,27 +1,31 @@
 import json
 import click
 from rich.console import Console
+from rich.text import Text
 from loguru import logger
 
 from app.api import fetch_verse_by_reference
 from app.utils import render_text_output
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.db.queries import QueryDB
-from app.db.connection import get_connection
-from app.db.schema import init_db
+
 
 console = Console()
 
 def run_menu(output: str):
     MENU = """
     === clible menu ===
-    [2] Show all saved verses
+
     [1] Fetch verse by reference
+    [2] Show all saved verses
+
     [0] Exit
     """
     while True:
         click.echo(MENU)
         choice = click.prompt("Select option", type=int)
+
+
 
         if choice == 1:
             handle_fetch(
@@ -30,11 +34,16 @@ def run_menu(output: str):
                 verses=None,
                 output=output,
             )
+        elif choice == 2:
+            db = QueryDB()
+            queries = db.show_all_saved_queries()
+            handle_render_queries(queries)
         elif choice == 0:
             click.echo("Bye!")
             break
         else:
             click.echo("Invalid choice, try again.")
+
 
 
 def handle_fetch(book: str | None, chapter: str | None, verses: str | None, output: str | None, use_mock: bool = False) -> None:
@@ -72,12 +81,24 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
 
 
 
-def handle_save(verse_data: dict) -> None:
-    db = QueryDB()
+def handle_render_queries(queries: dict) -> None:
+    if queries:
+        print("\n[Saved Queries]\n")
+        for q in queries:
+            created_at = q["created_at"]
+            ref = q["reference"]
 
-    conn = get_connection()
-    
-  
+            verse_count = q.get("verse_count", 0)
+            title = Text(ref, style="bold blue")
+
+            console.print(
+                f"- [bold blue]{ref}[/bold blue] ({verse_count} verses, saved at {created_at})"
+            )
+            print("") 
+    else:
+        print("No saved queries found.\n")
+
+
 @click.command()
 @click.option('--book', '-b', default=None, type=BookParam(), help='Bible book name (e.g. John)')
 @click.option('--chapter', '-c', default=None, type=ChapterParam(), help='Chapter number')
