@@ -98,31 +98,30 @@ class QueryDB:
 
         self.conn.commit()
         logger.info(f"Saved query: {reference}")
-        self.close()
 
     # ---------------------
     #   RETRIEVAL
     # ---------------------
 
     def show_all_saved_queries(self):
-            self.cur.execute(
-                """
-                SELECT q.id, q.reference, q.created_at, COUNT(v.id) as verse_count
-                FROM queries q
-                LEFT JOIN verses v ON q.id = v.query_id
-                GROUP BY q.id
-                ORDER BY q.created_at DESC;
-                """
-            )
-            rows = self.cur.fetchall()
-            return [dict(row) for row in rows]
+        self.cur.execute(
+            """
+            SELECT q.id, q.reference, q.created_at, COUNT(v.id) as verse_count
+            FROM queries q
+            LEFT JOIN verses v ON q.id = v.query_id
+            GROUP BY q.id
+            ORDER BY q.created_at DESC;
+            """
+        )
+        rows = self.cur.fetchall()
+        return [dict(row) for row in rows]
 
     # ---------------------
     #   ANALYTICS
     # ---------------------
 
-    def search_word(self, word: str):
-        pattern = f"% {word.lower()} %"
+    def search_word(self, word: str) -> list[dict]:
+        pattern = f"%{word.lower()}%"
 
         self.cur.execute(
             """
@@ -142,7 +141,8 @@ class QueryDB:
         return [dict(row) for row in self.cur.fetchall()]
 
 
-    def close(self):
-        self.conn.close()
-        logger.debug("DB connection closed")
+    def __enter__(self):
+        return self
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

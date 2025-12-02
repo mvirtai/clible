@@ -12,3 +12,5 @@ wheels/
 # env
 .envrc
 .env
+
+clible.db

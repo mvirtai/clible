@@ -3,12 +3,20 @@ import click
 from rich.console import Console
 from rich.text import Text
 from loguru import logger
+from typing import TypedDict
 
 from app.utils import console
 from app.api import fetch_verse_by_reference
 from app.utils import render_text_output, render_menu, prompt_menu_choice, MAIN_MENU, ANALYTICS_MENU
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.db.queries import QueryDB
+
+
+class VerseMatch(TypedDict):
+    book: str
+    chapter: int
+    verse: int
+    text: str
 
 
 def run_main_menu(output: str):
@@ -23,8 +31,8 @@ def run_main_menu(output: str):
                 output=output
             )
         elif choice == 2:
-            db = QueryDB()
-            handle_render_queries(db.show_all_saved_queries())
+            with QueryDB() as db:
+                handle_render_queries(db.show_all_saved_queries())
         elif choice == 3:
             run_analytic_menu()
         elif choice == 0:
@@ -32,16 +40,15 @@ def run_main_menu(output: str):
             break
 
 
-def handle_search_word() -> dict:
-    word_input = input("Search word: ").strip().lower()
+def handle_search_word() -> list[VerseMatch]:
+    word_input = input("Search word: ").strip()
     if not word_input:
         logger.info("Empty search, try again.")
         return []
     logger.info(f'Searching for "{word_input}"...')
 
-    db = QueryDB()
-    results = db.search_word(word_input)
-    db.close()
+    with QueryDB() as db:
+        results = db.search_word(word_input)
 
     if not results:
         logger.info(f'No matches found for "{word_input}"')
@@ -106,7 +113,7 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
 
 
 
-def handle_render_queries(queries: dict) -> None:
+def handle_render_queries(queries: list[dict]) -> None:
     if queries:
         print("\n[Saved Queries]\n")
         for q in queries:
