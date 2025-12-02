@@ -46,9 +46,9 @@ class TestValidateChapter:
     
     @pytest.mark.parametrize("chapter_input,expected_valid", [
         ("1", True),
-        ("150", True),  # maksimi
+        ("150", True),
         ("75", True),
-        ("  42  ", True),  # whitespace
+        ("  42  ", True), 
     ])
     def test_valid_chapters(self, chapter_input, expected_valid):
         """Testaa että validit luvut hyväksytään"""
@@ -78,14 +78,14 @@ class TestValidateVerses:
     @pytest.mark.parametrize("verses_input,expected_valid", [
         ("1", True),
         ("16", True),
-        ("175", True),  # maksimi
+        ("175", True), 
         ("1-3", True),
         ("16-18", True),
-        ("1-3,5", True),  # range + yksittäinen
-        ("1,3,5", True),  # useita yksittäisiä
-        ("16-18,20-22", True),  # useita rangeja
-        ("  16  ", True),  # whitespace
-        (" 16-18 ", True),  # whitespace range
+        ("1-3,5", True),  
+        ("1,3,5", True),  
+        ("16-18,20-22", True), 
+        ("  16  ", True),  
+        (" 16-18 ", True),  
     ])
     def test_valid_verses(self, verses_input, expected_valid):
         """Testaa että validit jaet hyväksytään"""
@@ -101,18 +101,18 @@ class TestValidateVerses:
         ("abc", "Verse must be a number"),
         
         # Range-virheet
-        ("11-1", "Start verse must be less than end verse"),  # tämä oli sun bugi!
+        ("11-1", "Start verse must be less than end verse"),  
         ("1-176", f"Verses must be in range {VERSES_MIN}-{VERSES_MAX}"),
         ("0-5", f"Verses must be in range {VERSES_MIN}-{VERSES_MAX}"),
         ("1-abc", "Verse numbers must be integers"),
         ("abc-5", "Verse numbers must be integers"),
         
         # Monimutkaiset virheet
-        ("1-3,0", f"Verse must be in range {VERSES_MIN} - {VERSES_MAX}"),  # toinen osa virheellinen
-        ("1-3,11-1", "Start verse must be less than end verse"),  # toinen range virheellinen
+        ("1-3,0", f"Verse must be in range {VERSES_MIN} - {VERSES_MAX}"), 
+        ("1-3,11-1", "Start verse must be less than end verse"), 
         
         # Muoto-virheet
-        ("1-2-3", "Invalid verse range format, use 'start-end'"),  # liikaa viivoja
+        ("1-2-3", "Invalid verse range format, use 'start-end'"),
         ("-", "Invalid verse range format, use 'start-end'"),
         ("", "Verse must be a number"),
     ])

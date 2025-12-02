@@ -6,9 +6,63 @@ from rich.padding import Padding
 
 from app.validations.validations import validate_books
 
-
-
 console = Console()
+
+MAIN_MENU = {
+    "title": "=== clible menu ===",
+    "options": [
+        "Fetch verse by reference",
+        "Show all saved verses",
+        "Analytic tools",
+    ],
+    "footer": "Exit",
+}
+
+ANALYTICS_MENU = {
+    "title": "=== Analytic tools ===",
+    "options": [
+        "Search word",
+        "Some-other-tool",
+    ],
+    "footer": "Back to main menu",
+}
+
+
+def prompt_menu_choice(menu: dict) -> int:
+    render_menu(menu)
+    while True:
+        choice = input("Select option: ").strip()
+        if choice.isdigit():
+            return int(choice)
+        console.print("[red]Please enter a number.[/red]")
+        
+
+def render_menu(menu: dict) -> None:
+    title = Text(menu["title"], style="bold magenta")
+
+    lines = []
+
+    for i, option in enumerate(menu["options"], start=1):
+        line = Text(f"[{i}] ", style="bold cyan")
+        line.append(option)
+        lines.append(line)
+    
+    footer_line = Text(f"[0] {menu['footer']}", style="bold red")
+
+    body = Padding(
+        Text("\n").join(lines + [Text("\n"), footer_line]),
+        (1, 2)
+    )
+
+    panel = Panel(
+        body,
+        title=title,
+        border_style="cyan",
+        expand=False
+    )
+
+    console.print(panel)
+
 
 def render_text_output(data: dict) -> Panel:
     reference = data.get('reference', 'Unknown reference').lower().strip()

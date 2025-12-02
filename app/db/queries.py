@@ -105,17 +105,42 @@ class QueryDB:
     # ---------------------
 
     def show_all_saved_queries(self):
+            self.cur.execute(
+                """
+                SELECT q.id, q.reference, q.created_at, COUNT(v.id) as verse_count
+                FROM queries q
+                LEFT JOIN verses v ON q.id = v.query_id
+                GROUP BY q.id
+                ORDER BY q.created_at DESC;
+                """
+            )
+            rows = self.cur.fetchall()
+            return [dict(row) for row in rows]
+
+    # ---------------------
+    #   ANALYTICS
+    # ---------------------
+
+    def search_word(self, word: str):
+        pattern = f"% {word.lower()} %"
+
         self.cur.execute(
             """
-            SELECT q.id, q.reference, q.created_at, COUNT(v.id) as verse_count
-            FROM queries q
-            LEFT JOIN verses v ON q.id = v.query_id
-            GROUP BY q.id
-            ORDER BY q.created_at DESC;
-            """
+            SELECT
+                b.name as book,
+                v.chapter,
+                v.verse,
+                v.text
+            FROM verses v
+            JOIN books b ON b.id = v.book_id
+            WHERE LOWER(' ' || v.text || ' ') LIKE ?
+            ORDER BY b.name, v.chapter, v.verse;
+            """,
+            (pattern,),
         )
-        rows = self.cur.fetchall()
-        return [dict(row) for row in rows]
+        
+        return [dict(row) for row in self.cur.fetchall()]
+
 
     def close(self):
         self.conn.close()

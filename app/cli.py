@@ -4,28 +4,52 @@ from rich.console import Console
 from rich.text import Text
 from loguru import logger
 
+from app.utils import console
 from app.api import fetch_verse_by_reference
-from app.utils import render_text_output
+from app.utils import render_text_output, render_menu, prompt_menu_choice, MAIN_MENU, ANALYTICS_MENU
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.db.queries import QueryDB
 
 
-console = Console()
+def run_analytic_menu():
+    while True:
+        choice = prompt_menu_choice(ANALYTICS_MENU)
+
+        if choice == 1:
+            pass
+        elif choice == 2:
+            console.print("[bold yellow]Not implemented yet![/bold yellow]")
+        elif choice == 0:
+            return
+
+
+def run_main_menu(output: str):
+    while True:
+        choice = prompt_menu_choice(MAIN_MENU)
+
+        if choice == 1:
+            handle_fetch(
+                book=None,
+                chapter=None,
+                verses=None,
+                output=output
+            )
+        elif choice == 2:
+            db = QueryDB()
+            handle_render_queries(db.show_all_saved_queries())
+        elif choice == 3:
+            run_analytic_menu()
+        elif choice == 0:
+            console.print("[bold red]Bye[/bold red]")
+            break
+
 
 def run_menu(output: str):
-    MENU = """
-    === clible menu ===
+    
 
-    [1] Fetch verse by reference
-    [2] Show all saved verses
-
-    [0] Exit
-    """
     while True:
-        click.echo(MENU)
+        render_menu(MAIN_MENU)
         choice = click.prompt("Select option", type=int)
-
-
 
         if choice == 1:
             handle_fetch(
@@ -111,7 +135,7 @@ def cli(book, chapter, verses, output, use_mock):
     elif use_mock:
         handle_fetch(book='John', chapter='3', verses='16', output=output, use_mock=True)
     else:
-        run_menu(output)
+        run_main_menu(output)
 
 
 if __name__ == "__main__":
