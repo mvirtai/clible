@@ -11,18 +11,6 @@ from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.db.queries import QueryDB
 
 
-def run_analytic_menu():
-    while True:
-        choice = prompt_menu_choice(ANALYTICS_MENU)
-
-        if choice == 1:
-            pass
-        elif choice == 2:
-            console.print("[bold yellow]Not implemented yet![/bold yellow]")
-        elif choice == 0:
-            return
-
-
 def run_main_menu(output: str):
     while True:
         choice = prompt_menu_choice(MAIN_MENU)
@@ -44,30 +32,43 @@ def run_main_menu(output: str):
             break
 
 
-def run_menu(output: str):
+def handle_search_word() -> dict:
+    word_input = input("Search word: ").strip().lower()
+    if not word_input:
+        logger.info("Empty search, try again.")
+        return []
+    logger.info(f'Searching for "{word_input}"...')
+
+    db = QueryDB()
+    results = db.search_word(word_input)
+    db.close()
+
+    if not results:
+        logger.info(f'No matches found for "{word_input}"')
+        return results
+
+    logger.info(f'Results for "{word_input}"')
+    print()
+
+    for row in results:
+        ref = f'{row["book"]} {row["chapter"]}:{row["verse"]}'
+        print(f'- {ref} {row["text"]}')
+    
+    print()
+    return results
     
 
+
+def run_analytic_menu():
     while True:
-        render_menu(MAIN_MENU)
-        choice = click.prompt("Select option", type=int)
+        choice = prompt_menu_choice(ANALYTICS_MENU)
 
         if choice == 1:
-            handle_fetch(
-                book=None,
-                chapter=None,
-                verses=None,
-                output=output,
-            )
-        elif choice == 2:
-            db = QueryDB()
-            queries = db.show_all_saved_queries()
-            handle_render_queries(queries)
+            results = handle_search_word()
+            
+            
         elif choice == 0:
-            click.echo("Bye!")
-            break
-        else:
-            click.echo("Invalid choice, try again.")
-
+            return
 
 
 def handle_fetch(book: str | None, chapter: str | None, verses: str | None, output: str | None, use_mock: bool = False) -> None:

@@ -5,6 +5,7 @@ from rich.panel import Panel
 from rich.padding import Padding
 
 from app.validations.validations import validate_books
+from app.db.queries import QueryDB
 
 console = Console()
 
@@ -35,7 +36,7 @@ def prompt_menu_choice(menu: dict) -> int:
         if choice.isdigit():
             return int(choice)
         console.print("[red]Please enter a number.[/red]")
-        
+
 
 def render_menu(menu: dict) -> None:
     title = Text(menu["title"], style="bold magenta")
