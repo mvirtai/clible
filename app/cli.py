@@ -4,10 +4,11 @@ from rich.console import Console
 from rich.text import Text
 from loguru import logger
 from typing import TypedDict
+from collections import Counter
 
 from app.utils import console
 from app.api import fetch_verse_by_reference
-from app.utils import render_text_output, render_menu, prompt_menu_choice, MAIN_MENU, ANALYTICS_MENU, highlight_word_in_text
+from app.utils import render_text_output, render_menu, prompt_menu_choice, MAIN_MENU, ANALYTICS_MENU, highlight_word_in_text, add_vertical_spacing, spacing_before_menu, spacing_after_output, spacing_between_sections
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.db.queries import QueryDB
 
@@ -21,6 +22,7 @@ class VerseMatch(TypedDict):
 
 def run_main_menu(output: str):
     while True:
+        spacing_before_menu()  # Ennen menua
         choice = prompt_menu_choice(MAIN_MENU)
 
         if choice == 1:
@@ -30,14 +32,35 @@ def run_main_menu(output: str):
                 verses=None,
                 output=output
             )
+            spacing_after_output()  # Yhden rivin väli
         elif choice == 2:
             with QueryDB() as db:
                 handle_render_queries(db.show_all_saved_queries())
+            spacing_after_output()
         elif choice == 3:
             run_analytic_menu()
+            spacing_after_output()
         elif choice == 0:
             console.print("[bold red]Bye[/bold red]")
             break
+
+
+def render_search_results_info(data: list[VerseMatch], search_word: str) -> None:
+    spacing_between_sections()  # 2 riviä ennen uutta osiota
+    total_count = len(data)
+    book_counts = Counter(row['book'] for row in data)
+
+    if total_count == 1:
+        info_str = f"Found a match for the word {search_word} in the book of {book_counts.keys()}"
+    elif total_count >= 2:
+        info_str = f'Found {total_count} matches for the word "{search_word}":'
+    
+    console.print(info_str)
+    spacing_after_output()  # Yhden rivin väli
+    
+    for book, count in book_counts.most_common():
+        console.print(f"  • {book}: {count}", markup=False)
+
 
 
 def handle_search_word() -> list[VerseMatch]:
@@ -53,28 +76,29 @@ def handle_search_word() -> list[VerseMatch]:
     if not results:
         logger.info(f'No matches found for "{word_input}"')
         return results
+    
+    render_search_results_info(results, word_input)
+    input()
 
-    logger.info(f'Results for "{word_input}"')
-    print()
-
-    for row in results:
+    spacing_between_sections()  # 2 riviä ennen tuloksia
+    for i, row in enumerate(results):
         ref = f'{row["book"]} {row["chapter"]}:{row["verse"]}'
         highlighted = highlight_word_in_text(row["text"], word_input)
-        console.print(f'- [bold]{ref}[/bold]: {highlighted}')
+        console.print(f'- [bold]{ref}[/bold]: {highlighted}', end="")
 
-    print()
+    spacing_after_output()
     return results
     
 
 
 def run_analytic_menu():
     while True:
+        spacing_before_menu()
         choice = prompt_menu_choice(ANALYTICS_MENU)
 
         if choice == 1:
             results = handle_search_word()
-            
-            
+            input("Press any key to continue...")
         elif choice == 0:
             return
 
@@ -84,8 +108,6 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
     chapter = chapter or click.prompt("Chapter", type=ChapterParam())
     verses = verses or click.prompt("Verses", type=VersesParam())
 
-
-
     verse_data = fetch_verse_by_reference(book, chapter, verses, use_mock)
 
     if not verse_data:
@@ -94,15 +116,15 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
     if output == "json":
         click.echo(json.dumps(verse_data, indent=2))
     elif output == "text":
-        print()
+        spacing_between_sections()  # 2 riviä ennen outputia
         console.print(render_text_output(verse_data))
-        print()
+        spacing_after_output()  # 1 rivi jälkeen
 
         while True:
             choice = input("Do you want to save the result? [y/N] ").strip().lower()
             if choice in ("y", "n", ""):
                 break
-            print("Please enter y or N.")
+            console.print("[red]Please enter y or N.[/red]")
         
         if choice == "y":
             db = QueryDB()
@@ -115,21 +137,22 @@ def handle_fetch(book: str | None, chapter: str | None, verses: str | None, outp
 
 
 def handle_render_queries(queries: list[dict]) -> None:
+    spacing_between_sections()
     if queries:
-        print("\n[Saved Queries]\n")
+        console.print("[bold]Saved Queries[/bold]")
+        spacing_after_output()
         for q in queries:
             created_at = q["created_at"]
             ref = q["reference"]
 
             verse_count = q.get("verse_count", 0)
-            title = Text(ref, style="bold blue")
-
             console.print(
                 f"- [bold blue]{ref}[/bold blue] ({verse_count} verses, saved at {created_at})"
             )
-            print("") 
     else:
-        print("No saved queries found.\n")
+        console.print("[dim]No saved queries found.[/dim]")
+    spacing_after_output()
+    input("Press any key to continue...")
 
 
 @click.command()
