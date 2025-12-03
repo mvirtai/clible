@@ -7,7 +7,7 @@ from typing import TypedDict
 
 from app.utils import console
 from app.api import fetch_verse_by_reference
-from app.utils import render_text_output, render_menu, prompt_menu_choice, MAIN_MENU, ANALYTICS_MENU
+from app.utils import render_text_output, render_menu, prompt_menu_choice, MAIN_MENU, ANALYTICS_MENU, highlight_word_in_text
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.db.queries import QueryDB
 
@@ -59,8 +59,9 @@ def handle_search_word() -> list[VerseMatch]:
 
     for row in results:
         ref = f'{row["book"]} {row["chapter"]}:{row["verse"]}'
-        print(f'- {ref} {row["text"]}')
-    
+        highlighted = highlight_word_in_text(row["text"], word_input)
+        console.print(f'- [bold]{ref}[/bold]: {highlighted}')
+
     print()
     return results
     
@@ -148,3 +149,5 @@ def cli(book, chapter, verses, output, use_mock):
 
 if __name__ == "__main__":
     cli()
+    # result = highlight_word_in_text("tämä on merkkijono", "merkkijono")
+    # console.print(result)
