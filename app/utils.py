@@ -76,10 +76,13 @@ def render_text_output(data: dict) -> Panel:
     
     body = Group(*body_lines)
     
+    reference = data.get('reference', 'Unknown reference')
+    translation_name = data.get('translation_name', '')
+    
     return Panel(Padding(
         body, (2, 2)), 
-        title=f"[bold magenta]{data.get('reference')}[/bold magenta]", 
-        subtitle=f"[italic cyan]{data.get('translation_name')}[/italic cyan]", 
+        title=f"[bold magenta]{reference}[/bold magenta]", 
+        subtitle=f"[italic cyan]{translation_name}[/italic cyan]", 
         expand=False)
 
 

@@ -79,7 +79,6 @@ def handle_search_word() -> list[VerseMatch]:
         return results
     
     render_search_results_info(results, word_input)
-    input()
 
     spacing_between_sections()  # 2 riviä ennen tuloksia
     for i, row in enumerate(results):
