@@ -90,3 +90,18 @@ def render_text_output(data: dict) -> Panel:
 
 def format_ref(book: str, chapter: str, verses: str) -> str:
     return f"{book.capitalize()} {chapter}:{verses}"
+
+
+def highlight_word_in_text(text: str, search_word: str) -> str:
+    words = text.split(" ")
+    highlighted_words = []
+
+    for word in words:
+        if word == search_word:
+        #    print(f"Match found: {word}") 
+            highlighted_words.append(f"[bold magenta]{word}[/bold magenta]")
+        else:
+            highlighted_words.append(word)
+
+    return " ".join(highlighted_words)
+    
