@@ -51,12 +51,13 @@ def render_search_results_info(data: list[VerseMatch], search_word: str) -> None
     book_counts = Counter(row['book'] for row in data)
 
     if total_count == 1:
-        info_str = f"Found a match for the word {search_word} in the book of {book_counts.keys()}"
+        book_name = next(iter(book_counts))
+        info_str = f"Found a match for the word {search_word} in the book of {book_name}"
     elif total_count >= 2:
         info_str = f'Found {total_count} matches for the word "{search_word}":'
     
     console.print(info_str)
-    spacing_after_output()  # Yhden rivin väli
+    spacing_after_output() 
     
     for book, count in book_counts.most_common():
         console.print(f"  • {book}: {count}", markup=False)
@@ -84,7 +85,7 @@ def handle_search_word() -> list[VerseMatch]:
     for i, row in enumerate(results):
         ref = f'{row["book"]} {row["chapter"]}:{row["verse"]}'
         highlighted = highlight_word_in_text(row["text"], word_input)
-        console.print(f'- [bold]{ref}[/bold]: {highlighted}', end="")
+        console.print(f'- [bold]{ref}[/bold]: {highlighted}')
 
     spacing_after_output()
     return results
