@@ -63,12 +63,6 @@ def render_menu(menu: dict) -> None:
 
 
 def render_text_output(data: dict) -> Panel:
-    reference = data.get('reference', 'Unknown reference').lower().strip()
-    translation = data.get('translation_name', '').strip()
-
-    title = Text(reference.upper(), style="bold magenta")
-    subtitle = Text(translation, style="italic cyan")
-
     body_lines = []
     for verse in data.get("verses", []):
         num = f"{verse['verse']:>3}"
@@ -81,10 +75,14 @@ def render_text_output(data: dict) -> Panel:
         body_lines.append(line)
     
     body = Group(*body_lines)
+    
+    reference = data.get('reference', 'Unknown reference')
+    translation_name = data.get('translation_name', '')
+    
     return Panel(Padding(
         body, (2, 2)), 
-        title=f"[bold magenta]{data.get('reference')}[/bold magenta]", 
-        subtitle=f"[italic cyan]{data.get('translation_name')}[/italic cyan]", 
+        title=f"[bold magenta]{reference}[/bold magenta]", 
+        subtitle=f"[italic cyan]{translation_name}[/italic cyan]", 
         expand=False)
 
 
@@ -97,7 +95,7 @@ def highlight_word_in_text(text: str, search_word: str) -> str:
     highlighted_words = []
 
     for word in words:
-        if word == search_word:
+        if word.lower() == search_word.lower():
         #    print(f"Match found: {word}") 
             highlighted_words.append(f"[bold magenta]{word}[/bold magenta]")
         else:
@@ -105,3 +103,18 @@ def highlight_word_in_text(text: str, search_word: str) -> str:
 
     return " ".join(highlighted_words)
     
+
+def add_vertical_spacing(lines: int = 1) -> None:
+    console.print("\n" * min(lines, 2))
+
+def spacing_before_menu() -> None:
+    """Add spacing before showing a menu."""
+    add_vertical_spacing(1)
+
+def spacing_after_output() -> None:
+    """Add spacing after displaying output."""
+    add_vertical_spacing(1)
+
+def spacing_between_sections() -> None:
+    """Add spacing between major sections."""
+    add_vertical_spacing(2)
