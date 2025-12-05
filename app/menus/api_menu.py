@@ -21,17 +21,22 @@ def run_api_menu(output: str):
 
         if choice == 1:
             verse_data = handle_fetch_by_ref('v')
-            spacing_between_sections()
-            console.print(render_text_output(verse_data))
-            handle_save(verse_data)
+            if verse_data:
+                spacing_between_sections()
+                console.print(render_text_output(verse_data))
+                handle_save(verse_data)
         elif choice == 2:
             chapter_data = handle_fetch_by_ref('c')
-            spacing_between_sections()
-            console.print(render_text_output(chapter_data))
-            handle_save(chapter_data)
+            if chapter_data:
+                spacing_between_sections()
+                console.print(render_text_output(chapter_data))
+                handle_save(chapter_data)
             spacing_after_output()
         elif choice == 3:
-            logger.info("Not yet implemented.")
+            random_verse_data = handle_fetch_by_ref('r')
+            if random_verse_data:
+                spacing_between_sections()
+                console.print(render_text_output(random_verse_data))
             spacing_after_output()
         elif choice == 0:
             return
@@ -56,7 +61,8 @@ def handle_fetch_by_ref(mode: str) -> dict | None:
         word = 'chapter'
     elif mode == 'r':
         # Fetch random verse
-        return None
+        data = fetch_by_reference(None, None, None, True)
+        word = 'random verse'
     else:
         logger.error(f"Invalid mode: {mode}. Must be 'v', 'c', or 'r'")
         return None

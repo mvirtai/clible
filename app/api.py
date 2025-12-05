@@ -9,7 +9,12 @@ mock_data_path = Path(__file__).resolve().parent / "data" / "mock_data.json"
 BASE_URL = "http://bible-api.com"
 
 
-def fetch_by_reference(book: str, chapter: str, verses: str | None, use_mock: bool = False) -> dict:
+def fetch_by_reference(
+    book: str | None = None,
+    chapter: str | None = None,
+    verses: str | None = None,
+    random: bool = False, 
+    use_mock: bool = False) -> dict:
     """Fetch a  verse, verses or a chapter from bible-api.com API"""
 
     # Possibility to use mock data for testing purposes
@@ -27,9 +32,12 @@ def fetch_by_reference(book: str, chapter: str, verses: str | None, use_mock: bo
             return None
         return data
     
-
+    # Fetch a random verse
+    if random:
+        url = f"{BASE_URL}/data/web/random"
+        logger.info(f"Fetching a random verse from path: {url}")
     # Fetch a single chapter
-    if not verses:
+    elif not verses:
         url = f"{BASE_URL}/{book}+{chapter}"
         logger.info(f"Fetching a single chapter from path: {url}")
     # Fetch a single verse or multiple verses
@@ -44,6 +52,36 @@ def fetch_by_reference(book: str, chapter: str, verses: str | None, use_mock: bo
 
         data = response.json()
         logger.info(f"Response status: {response.status_code}")
+
+        #Transform random verse response to match the expected structure
+        if random and data:
+            random_verse = data.get('random_verse', {})
+            translation = data.get('translation', {})
+
+            # Build reference string
+            book = random_verse.get('book', '')
+            chapter = random_verse.get('chapter', '')
+            verse = random_verse.get('verse', '')
+            reference = f"{book} {chapter}:{verse}" if all([book, chapter, verse]) else 'Unknown reference'
+
+            # Transform to standard format
+            data = {
+                "reference": reference,
+                "verses": [{
+                    "book_id": random_verse.get('book_id', ''),
+                    "book_name": random_verse.get('book_name', ''),
+                    "chapter": random_verse.get('chapter', 0),
+                    "verse": random_verse.get('verse', 0),
+                    "text": random_verse.get('text', ''),
+                }],
+                "translation_id": translation.get('identifier', ''),
+                "translation_name": translation.get('name', ''),
+                "translation_note": translation.get('license', ''),
+            }
+
+            logger.debug(f"Transformed random verse data: {json.dumps(data, indent=2) if data else 'None'}")
+            return data
+        
         return data
 
     except requests.exceptions.Timeout:
