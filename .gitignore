@@ -93,3 +93,6 @@ logs/
 # uv package manager (keep uv.lock, ignore cache)
 .uv/
 uv_cache/
+
+# Development roadmap
+development-roadmap.plan.md

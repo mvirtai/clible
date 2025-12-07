@@ -4,9 +4,40 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 from textwrap import shorten
+import uuid
 from loguru import logger
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "clible.db"
+
+
+# --- Schema for the database: ---
+#
+# Table: queries
+#   - id (TEXT, PRIMARY KEY)
+#   - reference (TEXT, NOT NULL)
+#   - created_at (TIMESTAMP, NOT NULL, DEFAULT CURRENT_TIMESTAMP)
+#
+# Table: books
+#   - id (TEXT, PRIMARY KEY)
+#   - name (TEXT, NOT NULL, UNIQUE)
+#
+# Table: verses
+#   - id (TEXT, PRIMARY KEY)
+#   - query_id (TEXT, NOT NULL, REFERENCES queries(id))
+#   - book_id (TEXT, NOT NULL, REFERENCES books(id))
+#   - chapter (INTEGER, NOT NULL)
+#   - verse (INTEGER, NOT NULL)
+#   - text (TEXT, NOT NULL)
+#   - snippet (TEXT)
+#
+# Table: translations
+#   - id (TEXT, PRIMARY KEY)
+#   - abbr (TEXT, NOT NULL, UNIQUE)
+#   - name (TEXT, NOT NULL, UNIQUE)
+#   - note (TEXT)
+#
+#   FOREIGN KEY (query_id) REFERENCES queries(id)
+#   FOREIGN KEY (book_id) REFERENCES books(id)
 
 
 class QueryDB:
@@ -20,20 +51,20 @@ class QueryDB:
         self.cur.executescript(
             """
             CREATE TABLE IF NOT EXISTS queries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT PRIMARY KEY,
                 reference TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS books (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT PRIMARY KEY,
                 name TEXT NOT NULL UNIQUE
             );
 
             CREATE TABLE IF NOT EXISTS verses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                query_id INTEGER NOT NULL,
-                book_id INTEGER NOT NULL,
+                id TEXT PRIMARY KEY,
+                query_id TEXT NOT NULL,
+                book_id TEXT NOT NULL,
                 chapter INTEGER NOT NULL,
                 verse INTEGER NOT NULL,
                 text TEXT NOT NULL,
@@ -41,6 +72,13 @@ class QueryDB:
                 FOREIGN KEY (query_id) REFERENCES queries(id),
                 FOREIGN KEY (book_id) REFERENCES books(id)
             );
+
+            CREATE TABLE IF NOT EXISTS translations (
+                id TEXT PRIMARY KEY,
+                abbr TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL UNIQUE,
+                note TEXT NULL
+            )
             """
         )
         self.conn.commit()
@@ -49,16 +87,17 @@ class QueryDB:
     #   HELPERS
     # ---------------------
 
-    def _ensure_book(self, book_name: str) -> int:
+    def _ensure_book(self, book_name: str) -> str:
         self.cur.execute("SELECT id FROM books WHERE name = ?", (book_name,))
         row = self.cur.fetchone()
 
         if row:
             return row["id"]
 
-        self.cur.execute("INSERT INTO books (name) VALUES (?)", (book_name,))
+        book_id = str(uuid.uuid4())[:8]
+        self.cur.execute("INSERT INTO books (id, name) VALUES (?, ?)", (book_id, book_name))
         self.conn.commit()
-        return self.cur.lastrowid
+        return book_id
 
     # ---------------------
     #   MAIN SAVE LOGIC
@@ -68,11 +107,37 @@ class QueryDB:
         reference = verse_data.get("reference", "").strip()
 
         # 1. Save query metadata
+        query_id = str(uuid.uuid4())[:8]
         self.cur.execute(
-            "INSERT INTO queries (reference) VALUES (?)",
-            (reference,),
+            "INSERT INTO queries (id, reference) VALUES (?, ?)",
+            (query_id, reference),
         )
-        query_id = self.cur.lastrowid
+        self.conn.commit()
+        
+        # Refactor to save translation metadata with query
+        translation_id = None
+        translation_name = verse_data.get("translation_name")
+        translation_abbr = verse_data.get("translation_id")
+
+        # translation_language is not provided in mock_data.json
+        translation_language = None
+
+        if translation_name or translation_abbr:
+            # Check if translation already exists (ignore language field)
+            self.cur.execute(
+                "SELECT id FROM translations WHERE name = ? AND abbr = ?",
+                (translation_name, translation_abbr)
+            )
+            translation_row = self.cur.fetchone()
+            if translation_row:
+                translation_id = translation_row["id"]
+            else:
+                translation_id = str(uuid.uuid4())[:8]
+                self.cur.execute(
+                    "INSERT INTO translations (id, name, abbr) VALUES (?, ?, ?)",
+                    (translation_id, translation_name, translation_abbr)
+                )
+                self.conn.commit()
 
         # 2. Extract verses
         verses = verse_data.get("verses", [])
@@ -86,14 +151,15 @@ class QueryDB:
             book_id = self._ensure_book(book_name)
 
             snippet = shorten(text.replace("\n", " "), width=160, placeholder="...")
-
+            
+            verse_id = str(uuid.uuid4())[:8]
             self.cur.execute(
                 """
                 INSERT INTO verses (
-                    query_id, book_id, chapter, verse, text, snippet
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    id, query_id, book_id, chapter, verse, text, snippet
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (query_id, book_id, chapter, verse, text, snippet),
+                (verse_id, query_id, book_id, chapter, verse, text, snippet),
             )
 
         self.conn.commit()
@@ -115,6 +181,61 @@ class QueryDB:
         )
         rows = self.cur.fetchall()
         return [dict(row) for row in rows]
+    
+
+    def get_single_saved_query(self, query_id: str) -> dict | None:
+        # 1. Get query metadata
+        self.cur.execute(
+            """
+            SELECT q.id, q.reference, q.created_at 
+            FROM queries q
+            WHERE q.id = ?
+            """,
+            (query_id,)
+        )
+        query_row = self.cur.fetchone()
+
+        if not query_row:
+            return None
+        
+        # 2. Get verses
+        self.cur.execute(
+            """
+            SELECT
+                b.name as book_name,
+                v.chapter,
+                v.verse,
+                v.text
+            FROM verses v
+            JOIN books b ON v.book_id = b.id
+            WHERE v.query_id = ?
+            ORDER BY v.chapter, v.verse
+            """,
+            (query_id,)
+        )
+        verses = [dict(row) for row in self.cur.fetchall()]
+
+        # 3. Format the dictionary to match the structure of API-fetched data
+        return {
+            "id": query_row["id"],
+            "reference": query_row["reference"],
+            "created_at": query_row["created_at"],
+            "verses": verses,
+        }
+
+    # ---------------------
+    #   RESET DATABASE
+    # ---------------------
+
+    def _reset_database(self):
+        self.cur.executescript(
+            """
+            DROP TABLE IF EXISTS queries;
+            DROP TABLE IF EXISTS books;
+            DROP TABLE IF EXISTS verses;
+            DROP TABLE IF EXISTS translations;
+            """
+        )
 
     # ---------------------
     #   ANALYTICS
@@ -146,3 +267,8 @@ class QueryDB:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
+
+
+if __name__ == "__main__":
+    db = QueryDB()
+    db._reset_database()
