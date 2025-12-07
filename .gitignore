@@ -1,16 +1,95 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+*.pyc
+*.pyo
+*.pyd
+.Python
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+*.egg
+.eggs/
 
 # Virtual environments
-.venv
+.venv/
+venv/
+ENV/
+env/
+.ENV
 
-# env
+# Environment variables
 .envrc
 .env
+.env.local
+.env.*.local
 
-clible.db
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+app/data/clible.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+.pytest_cache/
+test-results/
+*.cover
+*.log
+coverage.xml
+*.xml
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# uv package manager (keep uv.lock, ignore cache)
+.uv/
+uv_cache/

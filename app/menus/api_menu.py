@@ -37,6 +37,9 @@ def run_api_menu(output: str):
             if random_verse_data:
                 spacing_between_sections()
                 console.print(render_text_output(random_verse_data))
+                handle_save(random_verse_data)
+            else:
+                logger.error("Failed to fetch random verse. Check logs for details.")
             spacing_after_output()
         elif choice == 0:
             return

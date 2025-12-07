@@ -50,9 +50,11 @@ def render_search_results_info(data: list[VerseMatch], search_word: str) -> None
 
     if total_count == 1:
         book_name = next(iter(book_counts))
-        info_str = f"Found a match for the word {search_word} in the book of {book_name}"
+        info_str = f"Found a match for the word '{search_word}' in the book of {book_name}"
     elif total_count >= 2:
         info_str = f'Found {total_count} matches for the word "{search_word}":'
+    else:
+        info_str = f'No matches found for the word "{search_word}"'
     
     console.print(info_str)
     spacing_after_output() 
