@@ -25,12 +25,17 @@ def run_api_menu(output: str):
                 spacing_between_sections()
                 console.print(render_text_output(verse_data))
                 handle_save(verse_data)
+            else:
+                logger.error("Failed to fetch verse. Check logs for details.")
+            spacing_after_output()
         elif choice == 2:
             chapter_data = handle_fetch_by_ref('c')
             if chapter_data:
                 spacing_between_sections()
                 console.print(render_text_output(chapter_data))
                 handle_save(chapter_data)
+            else:
+                logger.error("Failed to fetch chapter. Check logs for details.")
             spacing_after_output()
         elif choice == 3:
             random_verse_data = handle_fetch_by_ref('r')
