@@ -1,12 +1,56 @@
+from pathlib import Path
 import click
 
+from app.export import export_query_to_markdown, EXPORT_DIR
 from app.utils import console, spacing_before_menu, spacing_after_output
 from app.menus.menu_utils import prompt_menu_choice
-from app.menus.menus import MAIN_MENU, ANALYTICS_MENU
+from app.menus.menus import MAIN_MENU, ANALYTICS_MENU, EXPORTS_MENU
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.menus.api_menu import run_api_menu
 from app.utils import handle_search_word, format_queries, console
 from app.db.queries import QueryDB
+
+
+def handle_export(query_id: str):
+    if not query_id:
+        console.print("[red]✗ No query ID provided[/red]")
+        return
+    
+    output_file = input(f"Output file (press Enter for auto-generated name, will be saved to {EXPORT_DIR}): ").strip()
+    output_path = Path(output_file) if output_file else None
+        
+    result = export_query_to_markdown(query_id, output_path)
+        
+    if result:
+        console.print(f"\n[bold green]✓ Successfully exported to: {result}[/bold green]")
+    else:
+        console.print(f"\n[red]✗ Failed to export query with ID '{query_id}'[/red]")
+    input("Press any key to continue...")
+
+
+def run_exports_menu():
+    while True:
+        spacing_after_output()
+
+        # Render all saved queries
+        db = QueryDB()
+        all_saved_verses = db.show_all_saved_queries()
+
+        if not all_saved_verses:
+            console.print("[dim]No saved queries found.[/dim]")
+        else:
+            console.print("\n[bold]Saved queries:[/bold]")
+            for verse in all_saved_verses:
+                console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
+        spacing_before_menu()
+
+        choice = prompt_menu_choice(EXPORTS_MENU)
+        if choice == 1:
+            query_id = input("\nGive ID: ").strip()
+            handle_export(query_id)
+            spacing_after_output()
+        elif choice == 0:
+            return
 
 
 def run_main_menu(output: str):
@@ -26,6 +70,9 @@ def run_main_menu(output: str):
             input("Press any key to continue...")
         elif choice == 3:
             run_analytic_menu()
+            spacing_after_output()
+        elif choice == 4:
+            run_exports_menu()
             spacing_after_output()
         elif choice == 0:
             console.print("[bold red]Bye[/bold red]")

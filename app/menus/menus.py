@@ -4,6 +4,7 @@ MAIN_MENU = {
         "Fetch from API",
         "Show all saved verses",
         "Analytic tools",
+        "Exports menu"
     ],
     "footer": "Exit",
 }
@@ -25,4 +26,13 @@ ANALYTICS_MENU = {
         "Some-other-tool",
     ],
     "footer": "Return to main menu",
+}
+
+EXPORTS_MENU = {
+    "title": "=== exports menu ===",
+    "options": [
+        "Export verses to markdown",
+        "Export verses to text"
+    ],
+    "footer": "Return to main menu"
 }

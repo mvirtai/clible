@@ -21,7 +21,7 @@ def format_verse_data_markdown(data: dict) -> str:
     lines = []
 
     # Header
-    lines.append(f"# {reference}\n")
+    lines.append(f"# {reference}\n\n")
 
     # Translation info
     if translation_name:
@@ -54,7 +54,7 @@ def format_verse_data_markdown(data: dict) -> str:
             current_chapter = chapter
         
         # Format verse
-        lines.append(f"**{verse_num}** {text}\n\n")
+        lines.append(f"[**{verse_num}**] {text}\n\n")
     
     return "".join(lines)
 
@@ -93,27 +93,27 @@ def export_query_to_markdown(query_id: str, output_path: Path | None = None) -> 
         return None
 
 
-if __name__ == "__main__":
-    # FOR TESTING PURPOSES ONLY
-    db = QueryDB()
-    all_saved_verses = db.show_all_saved_queries()
+# if __name__ == "__main__":
+#     # FOR TESTING PURPOSES ONLY
+#     db = QueryDB()
+#     all_saved_verses = db.show_all_saved_queries()
 
-    if not all_saved_verses:
-        console.print("[dim]No saved queries found.[/dim]")
-    else:
-        console.print("\n[bold]Saved queries:[/bold]")
-        for verse in all_saved_verses:
-            console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
+#     if not all_saved_verses:
+#         console.print("[dim]No saved queries found.[/dim]")
+#     else:
+#         console.print("\n[bold]Saved queries:[/bold]")
+#         for verse in all_saved_verses:
+#             console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
         
-        query_id = input("\nGive ID: ").strip()
-        if query_id:
-            output_file = input(f"Output file (press Enter for auto-generated name, will be saved to {EXPORT_DIR}): ").strip()
-            output_path = Path(output_file) if output_file else None
+#         query_id = input("\nGive ID: ").strip()
+#         if query_id:
+#             output_file = input(f"Output file (press Enter for auto-generated name, will be saved to {EXPORT_DIR}): ").strip()
+#             output_path = Path(output_file) if output_file else None
             
-            # Test export_query_to_markdown function
-            result = export_query_to_markdown(query_id, output_path)
+#             # Test export_query_to_markdown function
+#             result = export_query_to_markdown(query_id, output_path)
             
-            if result:
-                console.print(f"\n[bold green]✓ Successfully exported to: {result}[/bold green]")
-            else:
-                console.print(f"\n[red]✗ Failed to export query with ID '{query_id}'[/red]")
+#             if result:
+#                 console.print(f"\n[bold green]✓ Successfully exported to: {result}[/bold green]")
+#             else:
+#                 console.print(f"\n[red]✗ Failed to export query with ID '{query_id}'[/red]")

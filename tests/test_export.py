@@ -29,7 +29,7 @@ class TestFormatVerseDataMarkdown:
         assert '*Authorized Version*' in result
         assert '**Saved**: 2024-01-01 12:00:00' in result
         assert '## Chapter 3' in result
-        assert '**16** For God so loved the world...' in result
+        assert '[**16**] For God so loved the world...' in result
 
     def test_format_with_minimal_fields(self):
         """Test that minimal fields are sufficient"""
@@ -44,7 +44,7 @@ class TestFormatVerseDataMarkdown:
         
         assert '# John 3:16' in result
         assert '## Chapter 3' in result
-        assert '**16** For God so loved the world...' in result
+        assert '[**16**] For God so loved the world...' in result
         # Translation info uses default value if not provided
         assert '**Translation:** Unknown translation' in result
 
@@ -66,10 +66,10 @@ class TestFormatVerseDataMarkdown:
         assert '## Chapter 3' in result
         assert '## Chapter 4' in result
         # Verify that all verses are included
-        assert '**16** Verse 16 text' in result
-        assert '**17** Verse 17 text' in result
-        assert '**1** Verse 1 text' in result
-        assert '**2** Verse 2 text' in result
+        assert '[**16**] Verse 16 text' in result
+        assert '[**17**] Verse 17 text' in result
+        assert '[**1**] Verse 1 text' in result
+        assert '[**2**] Verse 2 text' in result
         # Verify that chapters are separated by blank line
         assert result.count('## Chapter') == 2
 
@@ -99,7 +99,7 @@ class TestFormatVerseDataMarkdown:
         result = format_verse_data_markdown(data)
         
         assert '# John 3:16' in result
-        assert '**16** Text' in result
+        assert '[**16**] Text' in result
 
     def test_format_unknown_reference(self):
         """Test that unknown reference uses default value"""
@@ -125,7 +125,7 @@ class TestFormatVerseDataMarkdown:
         result = format_verse_data_markdown(data)
         
         # Text should be trimmed
-        assert '**16** Text with spaces' in result
+        assert '[**16**] Text with spaces' in result
         assert '  Text with spaces  ' not in result
 
 
@@ -158,7 +158,7 @@ class TestExportQueryToMarkdown:
         # Verify file contents
         content = result.read_text(encoding='utf-8')
         assert '# John 3:16' in content
-        assert '**16** For God so loved the world...' in content
+        assert '[**16**] For God so loved the world...' in content
 
     def test_export_success_with_custom_filename(self, mocker: MockerFixture, tmp_path: Path):
         """Test that export succeeds with custom filename"""
