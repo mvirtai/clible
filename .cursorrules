@@ -1,0 +1,38 @@
+# Cursor Rules for clible project
+
+## Code Comments
+
+- All code comments must be written in English, regardless of the language used in variable names, function names, or other code elements.
+- Comments should be clear, concise, and explain the "why" when necessary, not just the "what".
+
+## Code Style
+
+- Follow Python PEP 8 style guidelines.
+- Use meaningful variable and function names.
+- Keep functions focused and single-purpose.
+
+## Documentation
+
+- Docstrings should be in English.
+- Use clear, descriptive names for functions and variables.
+
+## Testing
+
+- Write tests for new features.
+- Test names should clearly describe what is being tested.
+
+## Refactoring
+
+- Constantlly refactor the code to make it more readable and maintainable.
+- Suggest improvements to the code structure and architecture.
+- Suggest improvements to the code style and readability.
+- Suggest improvements to the code performance and efficiency.
+- Suggest improvements to the code security and robustness.
+- Suggest improvements to the code documentation and comments.
+- Suggest improvements to the code testing and coverage.
+- Suggest improvements to the code logging and error handling.
+- Suggest improvements to the code configuration and environment variables.
+- Suggest improvements to the code deployment and infrastructure.
+- Suggest improvements to the code monitoring and metrics.
+- Suggest improvements to the code logging and error handling.
+- Suggest improvements to the code configuration and environment variables.
