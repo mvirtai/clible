@@ -7,7 +7,7 @@ from textwrap import shorten
 import uuid
 from loguru import logger
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "clible.db"
+DB_PATH = Path(__file__).resolve().parent / "clible.db"
 
 
 # --- Schema for the database: ---
@@ -53,7 +53,9 @@ class QueryDB:
             CREATE TABLE IF NOT EXISTS queries (
                 id TEXT PRIMARY KEY,
                 reference TEXT NOT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                translation_id TEXT,
+                FOREIGN KEY (translation_id) REFERENCES translations(id)
             );
 
             CREATE TABLE IF NOT EXISTS books (
@@ -64,7 +66,7 @@ class QueryDB:
             CREATE TABLE IF NOT EXISTS verses (
                 id TEXT PRIMARY KEY,
                 query_id TEXT NOT NULL,
-                book_id TEXT NOT NULL,
+                book_id TEXT NOT NULL, 
                 chapter INTEGER NOT NULL,
                 verse INTEGER NOT NULL,
                 text TEXT NOT NULL,
@@ -82,6 +84,13 @@ class QueryDB:
             """
         )
         self.conn.commit()
+
+        # add translations col
+        try:
+            self.cur.execute("ALTER TABLE queries ADD COLUMN translation_id TEXT REFERENCES translations(id)")
+        except sqlite3.OperationalError:
+            # if exists, ignore
+            pass
 
     # ---------------------
     #   HELPERS
@@ -108,11 +117,6 @@ class QueryDB:
 
         # 1. Save query metadata
         query_id = str(uuid.uuid4())[:8]
-        self.cur.execute(
-            "INSERT INTO queries (id, reference) VALUES (?, ?)",
-            (query_id, reference),
-        )
-        self.conn.commit()
         
         # Refactor to save translation metadata with query
         translation_id = None
@@ -138,6 +142,14 @@ class QueryDB:
                     (translation_id, translation_name, translation_abbr)
                 )
                 self.conn.commit()
+
+        # Save query with translation_id
+        self.cur.execute(
+            """
+            INSERT INTO queries (id, reference, translation_id) VALUES (?, ?, ?)
+            """, (query_id, reference, translation_id)
+        )
+        self.conn.commit()
 
         # 2. Extract verses
         verses = verse_data.get("verses", [])
@@ -184,11 +196,19 @@ class QueryDB:
     
 
     def get_single_saved_query(self, query_id: str) -> dict | None:
-        # 1. Get query metadata
+        # 1. Get query metadata with translation info
         self.cur.execute(
             """
-            SELECT q.id, q.reference, q.created_at 
+            SELECT
+                q.id,
+                q.reference,
+                q.created_at,
+                t.id as translation_id,
+                t.abbr as translation_abbr,
+                t.name as translation_name,
+                t.note as translation_note
             FROM queries q
+            LEFT JOIN translations t ON q.translation_id = t.id
             WHERE q.id = ?
             """,
             (query_id,)
@@ -210,18 +230,26 @@ class QueryDB:
             JOIN books b ON v.book_id = b.id
             WHERE v.query_id = ?
             ORDER BY v.chapter, v.verse
-            """,
-            (query_id,)
+            """, (query_id,)
         )
         verses = [dict(row) for row in self.cur.fetchall()]
 
         # 3. Format the dictionary to match the structure of API-fetched data
-        return {
+        result = {
             "id": query_row["id"],
             "reference": query_row["reference"],
             "created_at": query_row["created_at"],
             "verses": verses,
         }
+        
+        # Add translation info if it exists
+        if query_row["translation_id"]:
+            result["translation_id"] = query_row["translation_abbr"]
+            result["translation_name"] = query_row["translation_name"]
+            if query_row["translation_note"]:
+                result["translation_note"] = query_row["translation_note"]
+        
+        return result
 
     # ---------------------
     #   RESET DATABASE

@@ -30,7 +30,7 @@ env/
 *.sqlite
 *.sqlite3
 *.sql
-app/data/clible.db
+app/db/*.db
 
 # Testing
 .pytest_cache/
