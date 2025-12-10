@@ -2,7 +2,7 @@
 import click
 from loguru import logger
 
-from app.utils import (
+from app.ui import (
     console, render_text_output, spacing_before_menu, spacing_after_output,
     spacing_between_sections,
 )

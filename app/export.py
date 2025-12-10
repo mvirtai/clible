@@ -3,7 +3,7 @@ import click
 from loguru import logger
 
 from app.db.queries import QueryDB
-from app.utils import console
+from app.ui import console
 
 # Default export directory
 EXPORT_DIR = Path(__file__).resolve().parent.parent / "data" / "exports"

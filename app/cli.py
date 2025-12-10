@@ -2,13 +2,15 @@ from pathlib import Path
 import click
 
 from app.export import export_query_to_markdown, EXPORT_DIR
-from app.utils import console, spacing_before_menu, spacing_after_output
+from app.ui import console, spacing_before_menu, spacing_after_output
 from app.menus.menu_utils import prompt_menu_choice
 from app.menus.menus import MAIN_MENU, ANALYTICS_MENU, EXPORTS_MENU
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.menus.api_menu import run_api_menu
-from app.utils import handle_search_word, format_queries, console
+from app.utils import handle_search_word
+from app.ui import format_queries
 from app.db.queries import QueryDB
+from app.analytics.word_frequency import WordFrequencyAnalyzer
 
 
 def handle_export(query_id: str):
@@ -86,6 +88,11 @@ def run_analytic_menu():
 
         if choice == 1:
             results = handle_search_word()
+            input("Press any key to continue...")
+        elif choice == 2:
+            wfa = WordFrequencyAnalyzer()
+            results = wfa.run_word_frequency_analysis()
+            console.print(results)
             input("Press any key to continue...")
         elif choice == 0:
             return

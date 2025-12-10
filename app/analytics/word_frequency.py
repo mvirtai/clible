@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from app.db.queries import QueryDB
-from app.utils import console
+from app.ui import console, format_results
 
 class WordFrequencyAnalyzer:
     """
@@ -146,6 +146,15 @@ class WordFrequencyAnalyzer:
             "vocabulary_size": vocabulary_size,
             "type_token_ratio": type_token_ratio,
         }
+
+
+    def run_word_frequency_analysis(self, verses: list[dict]) -> None:
+        """
+        Run the word frequency analysis and return the results.
+        """
+        top_words = self.analyze_top(verses, top_n=20)
+        vocab_info = self.count_vocabulary_size(verses)
+        format_results(top_words, vocab_info)   
 
 
 if __name__ == "__main__":
