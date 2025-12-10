@@ -59,6 +59,23 @@ Currently, only the `--output` flag is functional:
 ```bash
 uv run python -m app.cli --output text
 ```
+clible/
+├── app/
+│   ├── analytics/          # Analytics tools (word search, frequency analysis)
+│   ├── db/                 # Database queries and SQLite connection
+│   ├── menus/              # Menu system and navigation
+│   ├── validations/        # Input validation
+│   ├── api.py              # Bible API integration
+│   ├── cli.py              # Main CLI entry point
+│   ├── export.py           # Export functionality
+│   └── utils.py            # Utility functions and formatting
+├── data/
+│   ├── exports/            # Exported Markdown files
+│   └── mock_data.json      # Mock data for testing
+└── tests/                  # Test suite
+```
+
+## Technical Details
 
 **Available flags:**
 

@@ -35,8 +35,8 @@ def run_exports_menu():
         spacing_after_output()
 
         # Render all saved queries
-        db = QueryDB()
-        all_saved_verses = db.show_all_saved_queries()
+        with QueryDB() as db: 
+            all_saved_verses = db.show_all_saved_queries()
 
         if not all_saved_verses:
             console.print("[dim]No saved queries found.[/dim]")
