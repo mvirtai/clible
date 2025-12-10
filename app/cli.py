@@ -90,14 +90,22 @@ def run_analytic_menu():
             results = handle_search_word()
             input("Press any key to continue...")
         elif choice == 2:
-            wfa = WordFrequencyAnalyzer()
-            results = wfa.run_word_frequency_analysis()
-            console.print(results)
-            input("Press any key to continue...")
+            with QueryDB() as db:
+                all_saved_verses = db.show_all_saved_queries()
+                for verse in all_saved_verses:
+                    console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
+                spacing_before_menu()
+                query_id = input("Give ID: ").strip()
+                verse_data = db.get_verses_by_query_id(query_id)
+                if verse_data:
+                    analyzer = WordFrequencyAnalyzer()
+                    analyzer.show_word_frequency_analysis(verse_data)  
+                    spacing_after_output()
+                else:
+                    console.print("[red]No verses found for the given query ID.[/red]")
+                    spacing_after_output()
         elif choice == 0:
             return
-
-
 
 
 @click.command()

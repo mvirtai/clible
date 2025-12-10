@@ -151,52 +151,63 @@ def format_ref(book: str, chapter: str, verses: str) -> str:
 
 
 
-def format_word_frequency_analysis(results: list[tuple[str, int]]) -> None:
+def format_word_frequency_analysis(results: list[tuple[str, int]], show_header: bool = True) -> None:
     """
     Format a list of word frequency analysis results into displayable strings.
     
     Args:
         results: List of tuples containing word and frequency
-        
-    Returns:
-        List of formatted word frequency analysis strings ready for display
+        show_header: Whether to show the header (default: True)
     """
-    spacing_between_sections()
-    if results:
+    if show_header:
+        spacing_between_sections()
         console.print("[bold]Word Frequency Analysis[/bold]")
         spacing_after_output()
-
+    
+    if results:
         for word, frequency in results:
-            console.print(f"[bold green]Word: {word}[/bold green] | [bold yellow]Frequency: {frequency}[/bold yellow]")
+            console.print(f"  [bold cyan]{word:15}[/bold cyan] [dim]→[/dim] [bold yellow]{frequency:3}[/bold yellow]")
     else:
         console.print("[dim]No word frequency analysis results found.[/dim]")
+    
+    if show_header:
         spacing_after_output()
-    spacing_after_output()
 
 
 
 
-def format_vocabulary_info(info: dict) -> None:
+def format_vocabulary_info(info: dict, show_header: bool = True) -> None:
     """
     Format a dictionary of vocabulary information into displayable strings.
     
     Args:
         info: Dictionary containing vocabulary information
-        
-    Returns:
-        List of formatted vocabulary information strings ready for display
+        show_header: Whether to show the header (default: True)
     """
-    spacing_between_sections()
-    if info:
-        console.print("[bold]Vocabulary Info[/bold]")
+    if show_header:
+        spacing_between_sections()
+        console.print("[bold]Vocabulary Statistics[/bold]")
         spacing_after_output()
+    
+    if info:
+        # Format keys to be more readable
+        key_labels = {
+            "total_tokens": "Total Tokens",
+            "vocabulary_size": "Unique Words",
+            "type_token_ratio": "Type-Token Ratio"
+        }
         
         for key, value in info.items():
-            console.print(f"[bold green]Key: {key}[/bold green] | [bold yellow]Value: {value}[/bold yellow]")
+            label = key_labels.get(key, key.replace("_", " ").title())
+            if key == "type_token_ratio":
+                console.print(f"  [bold cyan]{label:20}[/bold cyan] [dim]→[/dim] [bold yellow]{value:.3f}[/bold yellow]")
+            else:
+                console.print(f"  [bold cyan]{label:20}[/bold cyan] [dim]→[/dim] [bold yellow]{value}[/bold yellow]")
     else:
         console.print("[dim]No vocabulary information found.[/dim]")
-        spacing_after_output()
-    spacing_after_output()  
+    
+    if show_header:
+        spacing_after_output()  
 
 def format_results(results: list[tuple[str, int]], info: dict) -> None:
     """
@@ -206,11 +217,10 @@ def format_results(results: list[tuple[str, int]], info: dict) -> None:
         results: List of tuples containing word and frequency
         info: Dictionary containing vocabulary information
     """
-    spacing_between_sections()
-    console.print("\n" + "Word Frequency Analysis:")
-    format_word_frequency_analysis(results)
-    console.print("\n" + "Vocabulary Info:")
-    format_vocabulary_info(info)
+    format_word_frequency_analysis(results, show_header=True)
+    input("Press any key to continue...")
+    format_vocabulary_info(info, show_header=True)
+    input("Press any key to continue...")
     spacing_after_output()
 
 

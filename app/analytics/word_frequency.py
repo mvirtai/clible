@@ -147,15 +147,21 @@ class WordFrequencyAnalyzer:
             "type_token_ratio": type_token_ratio,
         }
 
-
-    def run_word_frequency_analysis(self, verses: list[dict]) -> None:
+    
+    def show_word_frequency_analysis(self, verses: list[dict]) -> None:
         """
-        Run the word frequency analysis and return the results.
+        Show the word frequency analysis results.
+        
+        Args:
+            verses: List of verse dictionaries, each containing a 'text' field.
         """
+        verses_text = self.get_verses_text(verses)
+        if verses_text is None:
+            return
         top_words = self.analyze_top(verses, top_n=20)
         vocab_info = self.count_vocabulary_size(verses)
         format_results(top_words, vocab_info)   
-
+    
 
 if __name__ == "__main__":
     with QueryDB() as db:
