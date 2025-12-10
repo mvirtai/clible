@@ -24,6 +24,8 @@ ANALYTICS_MENU = {
     "options": [
         "Search word",
         "Word frequency analysis",
+        "Reading statistics",
+        "Phrase analysis",
     ],
     "footer": "Return to main menu",
 }
