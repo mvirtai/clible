@@ -251,6 +251,9 @@ class QueryDB:
         
         return result
 
+    def get_verses_by_query_id(self, query_id: str) -> list[dict]:
+        return self.get_single_saved_query(query_id)["verses"]
+
     # ---------------------
     #   RESET DATABASE
     # ---------------------
