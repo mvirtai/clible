@@ -23,7 +23,7 @@ ANALYTICS_MENU = {
     "title": "=== analytic tools ===",
     "options": [
         "Search word",
-        "Some-other-tool",
+        "Word frequency analysis",
     ],
     "footer": "Return to main menu",
 }

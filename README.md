@@ -1,132 +1,63 @@
 # clible
 
-A command-line Bible study tool that fetches verses from [bible-api.com](https://bible-api.com/) and provides tools for saving, searching, and exporting Bible verses.
+A command-line tool for Bible studies that fetches verses from [bible-api.com](https://bible-api.com/), saves them to a local database, and provides analytics and export capabilities.
 
-## Purpose
+## Features
 
-`clible` is designed to help you:
-- Quickly fetch Bible verses, chapters, or random verses from the web
-- Save your favorite verses and queries to a local database
-- Search through your saved verses for specific words
-- Export your saved verses to Markdown files for documentation or study notes
-
-The application uses an interactive terminal menu system, making it easy to navigate and use without remembering command-line flags.
+- **Fetch Bible Verses**: Retrieve verses, chapters, or random verses from the Bible API
+- **Save Queries**: Store fetched verses in a local SQLite database for later reference
+- **View Saved Queries**: Browse all previously saved queries with metadata
+- **Word Search**: Search for specific words across all saved verses
+- **Export to Markdown**: Export saved queries to formatted Markdown files
+- **Analytics Tools**: Analyze word frequency in saved verses (in development)
+- **Interactive Menu System**: User-friendly terminal interface with Rich formatting
+- **Mock Data Support**: Test the application using bundled mock data
 
 ## Requirements
 
-- Python 3.12 (matches `.python-version`)
+- Python 3.12+ (matches `.python-version`)
 - [uv](https://github.com/astral-sh/uv) for environment management
 
 ## Installation
 
-1. Clone the repository
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd clible
+```
+
 2. Install dependencies:
 
 ```bash
 uv sync
 ```
 
-This creates `.venv/`, installs the packages, and updates `uv.lock` so everyone shares the same dependency snapshot.
+This creates `.venv/`, installs all packages, and updates `uv.lock` so everyone shares the same dependency snapshot.
 
 ## Usage
 
-### Starting the Application
+### Interactive Menu
 
-Run the application with:
+Run the CLI with the interactive menu:
 
 ```bash
 uv run python -m app.cli
 ```
 
-This launches the interactive main menu.
+The main menu provides access to:
 
-### Main Menu Options
+1. **Fetch from API** - Fetch verses, chapters, or random verses
+2. **Show all saved verses** - View all saved queries
+3. **Analytic tools** - Search for words in saved verses
+4. **Exports menu** - Export saved queries to Markdown
 
-The application provides a terminal-based menu interface with the following options:
+### Command-Line Flags
 
-1. **Fetch from API** - Access the API menu to fetch verses
-2. **Show all saved verses** - View all queries you've saved to the database
-3. **Analytic tools** - Search and analyze your saved verses
-4. **Exports menu** - Export saved verses to various formats
+Currently, only the `--output` flag is functional:
 
-### Fetching Verses
-
-From the "Fetch from API" menu, you can:
-
-- **Fetch verse by reference**: Enter a book name, chapter, and verse(s) (e.g., `John`, `3`, `16` or `16-18`)
-- **Fetch chapter by reference**: Enter a book name and chapter to fetch the entire chapter
-- **Fetch random verse**: Get a random verse from the API
-
-After fetching, you'll see the verses displayed in a formatted Rich panel with:
-- Reference (e.g., "John 3:16")
-- Translation information
-- Verse numbers and text
-
-You'll be prompted to save the result to your local database.
-
-### Viewing Saved Verses
-
-Select "Show all saved verses" from the main menu to see all your saved queries with:
-- Query ID
-- Reference
-- Number of verses
-- Timestamp when saved
-
-### Analytics
-
-The analytics menu currently provides:
-
-- **Search word**: Search for a specific word across all your saved verses. Results show:
-  - Total number of matches
-  - Breakdown by book
-  - Each matching verse with the word highlighted
-  - Full reference for each match
-
-### Exports
-
-The exports menu allows you to:
-
-- **Export verses to markdown**: Export any saved query to a Markdown file
-  - Enter the query ID when prompted
-  - Optionally specify a filename (or press Enter for auto-generated name)
-  - Files are saved to `data/exports/` directory
-
-## Features
-
-### Database Storage
-
-The application uses SQLite to store:
-- **Queries**: Saved verse references with metadata
-- **Books**: Bible book names
-- **Verses**: Individual verse text and references
-- **Translations**: Translation metadata (name, abbreviation, notes)
-
-All data is stored locally in `app/db/clible.db`.
-
-### Rich Terminal UI
-
-The application uses the [Rich](https://github.com/Textualize/rich) library for beautiful terminal output:
-- Formatted panels for verse display
-- Color-coded information
-- Clear menu navigation
-
-## Development Direction
-
-The application is being developed with a focus on:
-
-1. **Terminal User Interface**: The application has moved away from command-line flags to a fully interactive menu system for better user experience
-2. **Local Data Management**: Emphasis on saving and managing your personal collection of verses
-3. **Search and Analytics**: Tools to help you find and analyze verses in your saved collection
-4. **Export Capabilities**: Ability to export your saved verses for use in other tools or documentation
-
-### Planned Features
-
-- Word frequency analysis for saved verses
-- Additional export formats (text, JSON)
-- More analytics tools
-
-## Project Structure
-
+```bash
+uv run python -m app.cli --output text
 ```
 clible/
 ├── app/
@@ -146,11 +77,130 @@ clible/
 
 ## Technical Details
 
-- **API**: Fetches from `http://bible-api.com`
-- **Database**: SQLite with relational schema (queries, books, verses, translations)
-- **Logging**: Uses `loguru` for structured logging
-- **Testing**: pytest for unit tests
+**Available flags:**
+
+- `--output` / `-o`: Output format - `text` (Rich panel) or `json` (default: `text`)
+
+**Note:** The following flags are defined but not currently implemented:
+- `--book` / `-b`: Bible book name (e.g., `John`)
+- `--chapter` / `-c`: Chapter number
+- `--verses` / `-v`: Verse number(s), e.g., `16` or `16-18`
+- `--use-mock` / `-um`: Load verses from `app/data/mock_data.json` instead of calling the API
+
+### Using the CLI Script
+
+If installed as a package, you can also use:
+
+```bash
+clible
+```
+
+## Main Features
+
+### Fetching Verses
+
+The application supports three ways to fetch verses:
+
+1. **By Reference**: Fetch specific verses (e.g., John 3:16 or John 3:16-18)
+2. **By Chapter**: Fetch an entire chapter (e.g., John 3)
+3. **Random Verse**: Fetch a random verse from the Bible
+
+All fetched verses can be saved to the local database for later use.
+
+### Saving Queries
+
+After fetching verses, you'll be prompted to save the result. Saved queries include:
+
+- Reference (e.g., "John 3:16")
+- Translation information (name, abbreviation, notes)
+- All verse text
+- Timestamp of when it was saved
+
+### Word Search
+
+Search for specific words across all saved verses. The search:
+
+- Finds all occurrences of the word (case-insensitive)
+- Groups results by book
+- Highlights the search word in the results
+- Shows book, chapter, verse, and text for each match
+
+### Export to Markdown
+
+Export any saved query to a formatted Markdown file:
+
+- Automatically generates filename from reference
+- Includes translation information
+- Formats verses with chapter headers
+- Saves to `data/exports/` directory
+
+## Project Structure
+
+```text
+clible/
+├── app/
+│   ├── __init__.py
+│   ├── cli.py              # Main CLI entry point
+│   ├── api.py              # Bible API integration
+│   ├── export.py           # Markdown export functionality
+│   ├── utils.py            # Utility functions for rendering
+│   ├── analytics/          # Analytics tools
+│   │   └── word_frequency.py
+│   ├── db/                 # Database operations
+│   │   ├── __init__.py
+│   │   └── queries.py      # SQLite database queries
+│   ├── menus/              # Menu system
+│   │   ├── api_menu.py
+│   │   ├── menu_utils.py
+│   │   └── menus.py
+│   └── validations/        # Input validation
+│       ├── click_params.py
+│       ├── validation_lists.py
+│       └── validations.py
+├── data/
+│   ├── mock_data.json      # Mock data for testing
+│   └── exports/            # Exported Markdown files
+├── tests/                  # Test suite
+├── pyproject.toml          # Project configuration
+├── uv.lock                 # Dependency lock file
+└── README.md
+```
+
+## Database Schema
+
+The application uses SQLite with the following tables:
+
+- **queries**: Stores query metadata (id, reference, created_at, translation_id)
+- **books**: Stores book names (id, name)
+- **verses**: Stores verse data (id, query_id, book_id, chapter, verse, text, snippet)
+- **translations**: Stores translation information (id, abbr, name, note)
+
+The database file is created automatically at `app/db/clible.db` on first run.
+
+## Dependencies
+
+- **click**: Command-line interface framework
+- **rich**: Terminal formatting and UI
+- **loguru**: Logging
+- **requests**: HTTP requests to Bible API
+- **pytest**: Testing framework
+
+## Development
+
+### Running Tests
+
+```bash
+uv run pytest
+```
+
+### Code Style
+
+The project follows PEP 8 style guidelines. All code comments must be written in English.
 
 ## License
 
-See project files for license information.
+[Add license information here]
+
+## Contributing
+
+[Add contributing guidelines here]

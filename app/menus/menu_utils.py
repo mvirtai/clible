@@ -1,7 +1,7 @@
 from rich.padding import Padding
 from rich.text import Text
 from rich.panel import Panel
-from app.utils import console
+from app.ui import console
 
 
 def prompt_menu_choice(menu: dict) -> int:

@@ -2,13 +2,15 @@ from pathlib import Path
 import click
 
 from app.export import export_query_to_markdown, EXPORT_DIR
-from app.utils import console, spacing_before_menu, spacing_after_output
+from app.ui import console, spacing_before_menu, spacing_after_output
 from app.menus.menu_utils import prompt_menu_choice
 from app.menus.menus import MAIN_MENU, ANALYTICS_MENU, EXPORTS_MENU
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.menus.api_menu import run_api_menu
-from app.utils import handle_search_word, format_queries, console
+from app.utils import handle_search_word
+from app.ui import format_queries
 from app.db.queries import QueryDB
+from app.analytics.word_frequency import WordFrequencyAnalyzer
 
 
 def handle_export(query_id: str):
@@ -87,10 +89,23 @@ def run_analytic_menu():
         if choice == 1:
             results = handle_search_word()
             input("Press any key to continue...")
+        elif choice == 2:
+            with QueryDB() as db:
+                all_saved_verses = db.show_all_saved_queries()
+                for verse in all_saved_verses:
+                    console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
+                spacing_before_menu()
+                query_id = input("Give ID: ").strip()
+                verse_data = db.get_verses_by_query_id(query_id)
+                if verse_data:
+                    analyzer = WordFrequencyAnalyzer()
+                    analyzer.show_word_frequency_analysis(verse_data)  
+                    spacing_after_output()
+                else:
+                    console.print("[red]No verses found for the given query ID.[/red]")
+                    spacing_after_output()
         elif choice == 0:
             return
-
-
 
 
 @click.command()

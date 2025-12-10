@@ -251,24 +251,8 @@ class QueryDB:
         
         return result
 
-        
     def get_verses_by_query_id(self, query_id: str) -> list[dict]:
-        self.cur.execute(
-            """
-            SELECT
-                v.id,
-                v.chapter,
-                v.verse,
-                v.text,
-                b.name AS book_name
-            FROM verses v
-            JOIN books b ON v.book_id = b.id
-            WHERE v.query_id = ?
-            ORDER BY v.chapter, v.verse
-            """, (query_id,)
-        )
-
-        return [dict(row) for row in self.cur.fetchall()]
+        return self.get_single_saved_query(query_id)["verses"]
 
     # ---------------------
     #   RESET DATABASE
