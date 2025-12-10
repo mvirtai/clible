@@ -224,6 +224,121 @@ def format_results(results: list[tuple[str, int]], info: dict) -> None:
     spacing_after_output()
 
 
+def format_reading_stats(stats: dict) -> None:
+    """
+    Format reading statistics into displayable strings.
+    
+    Args:
+        stats: Dictionary containing reading statistics
+    """
+    spacing_between_sections()
+    console.print("[bold]Reading Statistics[/bold]")
+    spacing_after_output()
+    
+    if stats:
+        key_labels = {
+            "total_verses": "Total Verses",
+            "unique_books": "Unique Books",
+            "unique_chapters": "Unique Chapters",
+            "total_queries": "Total Queries"
+        }
+        
+        for key, value in stats.items():
+            label = key_labels.get(key, key.replace("_", " ").title())
+            console.print(f"  [bold cyan]{label:20}[/bold cyan] [dim]→[/dim] [bold yellow]{value}[/bold yellow]")
+    else:
+        console.print("[dim]No reading statistics found.[/dim]")
+    
+    spacing_after_output()
+
+
+def format_top_books(books: list[tuple[str, int]]) -> None:
+    """
+    Format top books list into displayable strings.
+    
+    Args:
+        books: List of tuples containing (book_name, count)
+    """
+    spacing_between_sections()
+    console.print("[bold]Top Books[/bold]")
+    spacing_after_output()
+    
+    if books:
+        for book, count in books:
+            console.print(f"  [bold cyan]{book:20}[/bold cyan] [dim]→[/dim] [bold yellow]{count:3}[/bold yellow]")
+    else:
+        console.print("[dim]No books found.[/dim]")
+    
+    spacing_after_output()
+
+
+def format_top_chapters(chapters: list[tuple[str, int, int]]) -> None:
+    """
+    Format top chapters list into displayable strings.
+    
+    Args:
+        chapters: List of tuples containing (book_name, chapter, count)
+    """
+    spacing_between_sections()
+    console.print("[bold]Top Chapters[/bold]")
+    spacing_after_output()
+    
+    if chapters:
+        for book, chapter, count in chapters:
+            chapter_ref = f"{book} {chapter}"
+            console.print(f"  [bold cyan]{chapter_ref:20}[/bold cyan] [dim]→[/dim] [bold yellow]{count:3}[/bold yellow]")
+    else:
+        console.print("[dim]No chapters found.[/dim]")
+    
+    spacing_after_output()
+
+
+def format_bigrams(bigrams: list[tuple[str, int]], show_header: bool = True) -> None:
+    """
+    Format bigram analysis results into displayable strings.
+    
+    Args:
+        bigrams: List of tuples containing (bigram_phrase, count)
+        show_header: Whether to show the header (default: True)
+    """
+    if show_header:
+        spacing_between_sections()
+        console.print("[bold]Top Bigrams (Word Pairs)[/bold]")
+        spacing_after_output()
+    
+    if bigrams:
+        for phrase, frequency in bigrams:
+            console.print(f"  [bold cyan]{phrase:30}[/bold cyan] [dim]→[/dim] [bold yellow]{frequency:3}[/bold yellow]")
+    else:
+        console.print("[dim]No bigrams found.[/dim]")
+    
+    if show_header:
+        spacing_after_output()
+
+
+def format_trigrams(trigrams: list[tuple[str, int]], show_header: bool = True) -> None:
+    """
+    Format trigram analysis results into displayable strings.
+    
+    Args:
+        trigrams: List of tuples containing (trigram_phrase, count)
+        show_header: Whether to show the header (default: True)
+    """
+    if show_header:
+        spacing_between_sections()
+        console.print("[bold]Top Trigrams (Three-Word Phrases)[/bold]")
+        spacing_after_output()
+    
+    if trigrams:
+        for phrase, frequency in trigrams:
+            console.print(f"  [bold cyan]{phrase:40}[/bold cyan] [dim]→[/dim] [bold yellow]{frequency:3}[/bold yellow]")
+    else:
+        console.print("[dim]No trigrams found.[/dim]")
+    
+    if show_header:
+        spacing_after_output()
+
+
 
 # Spacing utilities
 

@@ -11,6 +11,8 @@ from app.utils import handle_search_word
 from app.ui import format_queries
 from app.db.queries import QueryDB
 from app.analytics.word_frequency import WordFrequencyAnalyzer
+from app.analytics.reading_stats import ReadingStatsAnalyzer
+from app.analytics.phrase_analysis import PhraseAnalyzer
 
 
 def handle_export(query_id: str):
@@ -101,6 +103,24 @@ def run_analytic_menu():
                     analyzer = WordFrequencyAnalyzer()
                     analyzer.show_word_frequency_analysis(verse_data)  
                     spacing_after_output()
+                else:
+                    console.print("[red]No verses found for the given query ID.[/red]")
+                    spacing_after_output()
+        elif choice == 3:
+            with QueryDB() as db:
+                analyzer = ReadingStatsAnalyzer(db)
+                analyzer.show_reading_statistics()
+        elif choice == 4:
+            with QueryDB() as db:
+                all_saved_verses = db.show_all_saved_queries()
+                for verse in all_saved_verses:
+                    console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
+                spacing_before_menu()
+                query_id = input("Give ID: ").strip()
+                verse_data = db.get_verses_by_query_id(query_id)
+                if verse_data:
+                    analyzer = PhraseAnalyzer()
+                    analyzer.show_phrase_analysis(verse_data)
                 else:
                     console.print("[red]No verses found for the given query ID.[/red]")
                     spacing_after_output()
