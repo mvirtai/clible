@@ -9,17 +9,21 @@ RUN uv sync --frozen
 
 COPY app /workspace/app
 COPY tests /workspace/tests
-
+COPY data /workspace/data
 RUN uv run pytest tests/
 
 ##################
 FROM python:3.12-slim AS runtime
 WORKDIR /workspace
 
+
+RUN pip install uv
+
 COPY --from=builder /workspace/.venv /workspace/.venv 
 COPY --from=builder /workspace/app /workspace/app
 
 ENV PATH="/workspace/.venv/bin:$PATH"
+
 
 ENTRYPOINT [ "python", "-m", "app.cli" ]
 CMD []
