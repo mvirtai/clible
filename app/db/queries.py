@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from textwrap import shorten
 import uuid
+import json
 from loguru import logger
 
 DB_PATH = Path(__file__).resolve().parent / "clible.db"
@@ -217,13 +218,133 @@ class QueryDB:
     #   SESSION LOGIC
     # ---------------------
 
+    def create_session(self, user_id: str, name: str, scope: str, is_saved: bool = False) -> str | None:
+        session_id = str(uuid.uuid4())[:8]
+        if session_id and user_id:
+            self.cur.execute(
+                "INSERT INTO sessions (id, user_id, name, scope, is_saved) VALUES (?, ?, ?, ?, ?)",
+                (
+                    session_id,
+                    user_id,
+                    name,
+                    scope,
+                    1 if is_saved else 0,
+                ),
+            )
+            self.conn.commit()
+            return session_id
+        return None
 
+    def get_session(self, session_id: str) -> dict | None:
+        if not session_id:
+            return None
+        self.cur.execute(
+            "SELECT id, user_id, name, scope, created_at, is_saved FROM sessions WHERE id = ?",
+            (session_id,),
+        )
+        row = self.cur.fetchone()
+        return dict(row) if row else None
+
+    def list_sessions(self, user_id: str | None = None) -> list[dict]:
+        sql = "SELECT id, user_id, name, scope, created_at, is_saved FROM sessions"
+        params: tuple[str, ...] = ()
+        if user_id:
+            sql += " WHERE user_id = ?"
+            params = (user_id,)
+        sql += " ORDER BY created_at DESC"
+        self.cur.execute(sql, params)
+        rows = self.cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def add_query_to_session(self, session_id: str, query_id: str) -> None:
+        if not (session_id and query_id):
+            return
+        try:
+            self.cur.execute(
+                "INSERT INTO session_queries (session_id, query_id) VALUES (?, ?)",
+                (session_id, query_id),
+            )
+            self.conn.commit()
+        except sqlite3.IntegrityError:
+            logger.debug("Query %s already linked to session %s", query_id, session_id)
+
+    def _serialize_verse_data(self, verse_data: dict) -> str:
+        return json.dumps(verse_data, ensure_ascii=False)
+
+    def _deserialize_verse_data(self, data_text: str) -> dict:
+        try:
+            return json.loads(data_text)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    def save_query_to_session_cache(self, session_id: str, verse_data: dict) -> str | None:
+        query_id = str(uuid.uuid4())[:8]
+        reference = verse_data.get("reference", "").strip()
+        if not session_id or not query_id:
+            return None
+        serialized = self._serialize_verse_data(verse_data)
+        self.cur.execute(
+            "INSERT INTO session_queries_cache (id, session_id, reference, verse_data) VALUES (?, ?, ?, ?)",
+            (query_id, session_id, reference, serialized),
+        )
+        self.conn.commit()
+        return query_id
+
+    def get_cached_queries_for_session(self, session_id: str) -> list[dict]:
+        if not session_id:
+            return []
+        self.cur.execute(
+            "SELECT id, reference, verse_data, created_at FROM session_queries_cache WHERE session_id = ?",
+            (session_id,),
+        )
+        rows = self.cur.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "reference": row["reference"],
+                "verse_data": self._deserialize_verse_data(row["verse_data"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def get_session_queries(self, session_id: str) -> list[dict]:
+        results: list[dict] = []
+        if not session_id:
+            return results
+        self.cur.execute(
+            "SELECT query_id FROM session_queries WHERE session_id = ?", (session_id,)
+        )
+        for row in self.cur.fetchall():
+            query_id = row.get("query_id")
+            if query_id:
+                query_data = self.get_single_saved_query(query_id)
+                if query_data:
+                    query_data["_source"] = "saved"
+                    results.append(query_data)
+        cached = self.get_cached_queries_for_session(session_id)
+        for row in cached:
+            row["_source"] = "cache"
+            results.append(row)
+        return results
+
+    def save_session(self, session_id: str) -> None:
+        if session_id:
+            self.cur.execute("UPDATE sessions WHERE id = ? SET is_saved = 1", (session_id,))
+            self.conn.commit()
+    # ---------------------
+        return None
+
+    def delete_session(self, session_id: str) -> None:
+        if session_id:
+            self.cur.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            self.conn.commit()
 
     # ---------------------
     #   MAIN SAVE LOGIC
     # ---------------------
 
-    def save_query(self, verse_data: dict) -> None:
+    def save_query(self, verse_data: dict) -> str:
         reference = verse_data.get("reference", "").strip()
 
         # 1. Save query metadata
@@ -264,7 +385,7 @@ class QueryDB:
 
         # 2. Extract verses
         verses = verse_data.get("verses", [])
-
+ 
         for v in verses:
             book_name = v.get("book_name")
             chapter = v.get("chapter")
@@ -287,6 +408,7 @@ class QueryDB:
 
         self.conn.commit()
         logger.info(f"Saved query: {reference}")
+        return query_id
 
     # ---------------------
     #   RETRIEVAL
