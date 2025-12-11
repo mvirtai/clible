@@ -153,7 +153,7 @@ class TestHandleSave:
         
         mock_confirm.assert_called_once_with("Do you want to save result the result? [y/N] ", default=True)
         mock_db.save_query.assert_called_once_with(test_data)
-        mock_logger.info.assert_called_once_with("Result saved successfully")
+        mock_logger.info.assert_called_once_with("Result saved successfully (id=%s)", mock_db.save_query.return_value)
 
     def test_save_exception(self, mocker: MockerFixture):
         """Test that exception is handled correctly during save"""

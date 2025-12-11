@@ -4,7 +4,8 @@ MAIN_MENU = {
         "Fetch from API",
         "Show all saved verses",
         "Analytic tools",
-        "Exports menu"
+        "Exports menu",
+        "Session management"
     ],
     "footer": "Exit",
 }
@@ -34,6 +35,18 @@ EXPORTS_MENU = {
     "options": [
         "Export verses to markdown",
         "Export verses to text"
+    ],
+    "footer": "Return to main menu"
+}
+
+SESSION_MENU = {
+    "title": "=== session management ===",
+    "options": [
+        "Start new session",
+        "Resume session",
+        "List saved sessions",
+        "Delete session",
+        "Clear session cache",
     ],
     "footer": "Return to main menu"
 }
