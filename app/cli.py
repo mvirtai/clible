@@ -11,7 +11,6 @@ from app.utils import handle_search_word
 from app.ui import format_queries
 from app.db.queries import QueryDB
 from app.analytics.word_frequency import WordFrequencyAnalyzer
-from app.analytics.reading_stats import ReadingStatsAnalyzer
 from app.analytics.phrase_analysis import PhraseAnalyzer
 
 
@@ -106,10 +105,6 @@ def run_analytic_menu():
                 else:
                     console.print("[red]No verses found for the given query ID.[/red]")
                     spacing_after_output()
-        # elif choice == 3:
-        #     with QueryDB() as db:
-        #         analyzer = ReadingStatsAnalyzer(db)
-        #         analyzer.show_reading_statistics()
         elif choice == 3:
             with QueryDB() as db:
                 all_saved_verses = db.show_all_saved_queries()
