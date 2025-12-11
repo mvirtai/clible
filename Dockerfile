@@ -10,7 +10,8 @@ RUN uv sync --frozen
 COPY app /workspace/app
 COPY tests /workspace/tests
 COPY data /workspace/data
-RUN uv run pytest tests/
+
+RUN uv run pytest
 
 ##################
 FROM python:3.12-slim AS runtime
