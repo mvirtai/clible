@@ -511,15 +511,25 @@ Failed to clear session cache.
     # ---------------------
 
     def _reset_database(self):
+        # Temporarily disable foreign key checks
+        self.cur.execute("PRAGMA foreign_keys = OFF;")
+        
         self.cur.executescript(
             """
+            DROP TABLE IF EXISTS session_queries_cache;
+            DROP TABLE IF EXISTS session_queries;
+            DROP TABLE IF EXISTS sessions;
+            DROP TABLE IF EXISTS users;
+            DROP TABLE IF EXISTS verses;
             DROP TABLE IF EXISTS queries;
             DROP TABLE IF EXISTS books;
-            DROP TABLE IF EXISTS verses;
             DROP TABLE IF EXISTS translations;
             """
         )
-
+        
+        # Re-enable foreign key checks
+        self.cur.execute("PRAGMA foreign_keys = ON;")
+        self.conn.commit() 
     # ---------------------
     #   ANALYTICS
     # ---------------------
