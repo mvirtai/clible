@@ -178,7 +178,9 @@ class QueryDB:
                 return dict(row)
             else:
                 new_user_id = self.create_user(user_name)
-                return self.get_user_by_id(new_user_id)                
+                if new_user_id:
+                    return self.get_user_by_id(new_user_id)
+        return None
 
 
     def get_user_by_id(self, user_id: str) -> dict | None:
@@ -329,11 +331,13 @@ class QueryDB:
         return results
 
     def save_session(self, session_id: str) -> None:
-        if session_id:
-            self.cur.execute("UPDATE sessions WHERE id = ? SET is_saved = 1", (session_id,))
-            self.conn.commit()
+        if not session_id:
+            return
+        self.cur.execute(
+            "UPDATE sessions SET is_saved = 1 WHERE id = ?", (session_id,)
+        )
+        self.conn.commit()
     # ---------------------
-        return None
 
     def delete_session(self, session_id: str) -> None:
         if session_id:

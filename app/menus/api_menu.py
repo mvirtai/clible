@@ -91,7 +91,6 @@ def handle_save(data: dict):
             with QueryDB() as db:
                 saved_id = db.save_query(data)
             logger.info("Result saved successfully (id=%s)", saved_id)
-            logger.info("Result saved successfully")
         except Exception as e:
             logger.error(f"Failed to save result: {e}")
     else:
