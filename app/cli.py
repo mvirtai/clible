@@ -4,7 +4,7 @@ import click
 from app.export import export_query_to_markdown, EXPORT_DIR
 from app.ui import console, spacing_before_menu, spacing_after_output
 from app.menus.menu_utils import prompt_menu_choice
-from app.menus.menus import MAIN_MENU, ANALYTICS_MENU, EXPORTS_MENU
+from app.menus.menus import MAIN_MENU, ANALYTICS_MENU, EXPORTS_MENU, SESSION_MENU
 from app.validations.click_params import BookParam, ChapterParam, VersesParam
 from app.menus.api_menu import run_api_menu
 from app.utils import handle_search_word
@@ -77,6 +77,9 @@ def run_main_menu(output: str):
         elif choice == 4:
             run_exports_menu()
             spacing_after_output()
+        elif choice == 5:
+            run_session_menu()
+            spacing_after_output()
         elif choice == 0:
             console.print("[bold red]Bye[/bold red]")
             break
@@ -122,6 +125,60 @@ def run_analytic_menu():
         elif choice == 0:
             return
 
+
+def run_session_menu():
+    while True:
+        spacing_before_menu()
+        choice = prompt_menu_choice(SESSION_MENU)
+        if choice == 1:
+            user_name = input("Enter your name: ").strip()
+            session_name = input("Enter session name: ").strip()
+            scope = input("Enter scope (e.g. John, Paul's letters): ").strip()
+            with QueryDB() as db:
+                user_id = db.get_or_create_default_user()
+                session_id = db.create_session(user_id, session_name, scope, is_saved=False)
+                if session_id:
+                    console.print(f"Session started successfully with ID: {session_id}")
+                else:
+                    console.print("[red]Failed to start new session.[/red]")
+            spacing_after_output()
+        elif choice == 2:
+            session_id = input("Enter session ID: ").strip()
+            with QueryDB() as db:
+                session = db.get_session(session_id)
+                if session:
+                    console.print(f"Session resumed successfully: {session['name']}")
+                else:
+                    console.print("[red]Session not found.[/red]")
+            spacing_after_output()
+        elif choice == 3:
+            with QueryDB() as db:
+                sessions = db.list_sessions()
+                if sessions:
+                    console.print("\n[bold]Saved sessions:[/bold]")
+                    for session in sessions:
+                        console.print(f"  ID: {session['id']} | Name: {session['name']} | Scope: {session['scope']}")
+                else:
+                    console.print("[dim]No saved sessions found.[/dim]")
+            spacing_after_output()
+        elif choice == 4:
+            session_id = input("Enter session ID: ").strip()
+            with QueryDB() as db:
+                if db.delete_session(session_id):
+                    console.print("[bold green]Session deleted successfully.[/bold green]")
+                else:
+                    console.print("[red]Failed to delete session.[/red]")
+            spacing_after_output()
+        elif choice == 5:
+            session_id = input("Enter session ID: ").strip()
+            with QueryDB() as db:
+                if db.clear_session_cache(session_id):
+                    console.print("[bold green]Session cache cleared successfully.[/bold green]")
+                else:
+                    console.print("[red]Failed to clear session cache.[/red]")
+            spacing_after_output()
+        elif choice == 0:
+            return
 
 @click.command()
 @click.option('--book', '-b', default=None, type=BookParam(), help='Bible book name (e.g. John)')

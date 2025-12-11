@@ -339,10 +339,21 @@ class QueryDB:
         self.conn.commit()
     # ---------------------
 
-    def delete_session(self, session_id: str) -> None:
-        if session_id:
-            self.cur.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
-            self.conn.commit()
+    def delete_session(self, session_id: str) -> bool:
+        if not session_id:
+            return False
+        self.cur.execute("DELETE FROM session_queries WHERE session_id = ?", (session_id,))
+        self.cur.execute("DELETE FROM session_queries_cache WHERE session_id = ?", (session_id,))
+        self.cur.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        self.conn.commit()
+        return self.cur.rowcount > 0
+
+    def clear_session_cache(self, session_id: str) -> bool:
+        if not session_id:
+            return False
+        self.cur.execute("DELETE FROM session_queries_cache WHERE session_id = ?", (session_id,))
+        self.conn.commit()
+        return self.cur.rowcount > 0
 
     # ---------------------
     #   MAIN SAVE LOGIC
@@ -403,7 +414,11 @@ class QueryDB:
             verse_id = str(uuid.uuid4())[:8]
             self.cur.execute(
                 """
-                INSERT INTO verses (
+                INSERT INTO verses (Select option: 5
+Enter session ID: 4d6d3416
+Failed to clear session cache.
+
+
                     id, query_id, book_id, chapter, verse, text, snippet
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
