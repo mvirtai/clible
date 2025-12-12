@@ -63,3 +63,8 @@ jobs:
           if [ -n "$IMAGE_TAG" ]; then
             docker run --rm "$IMAGE_TAG" --help
           fi
+      - name: Push Docker image
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER || 'clible-ci' }}
+          REGISTRY: ${{ secrets.REGISTRY || 'docker.io' }}
+        run: task push
