@@ -12,6 +12,7 @@ wheels/
 *.egg
 .eggs/
 
+.cursor/
 # Virtual environments
 .venv/
 venv/
