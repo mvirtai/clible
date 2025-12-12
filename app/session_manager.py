@@ -1,99 +1,90 @@
-"""
-Session management module.
 
-Provides SessionManager class for handling user sessions,
-coordinating between AppState (in-memory state) and QueryDB (persistence).
-"""
-
-from loguru import logger
 from app.db.queries import QueryDB
-from app.state import AppState
-
-class AuthenticationError(Exception):
-    """Exception raised when authentication is required but not provided."""
-    pass
 
 class SessionManager:
-    """
-    Manages user sessions by coordinating AppState and database operations.
-    
-    Responsibilities:
-    - Provide high-level session operations (start, resume, save, delete)
-    - Keep AppState synchronized with database
-    - Validate operations before executing them
-    - Handle errors gracefully
-    
-    The SessionManager does NOT store state itself - it manages the state
-    stored in AppState singleton.
-    """
+    """Manages current session state in memory."""
     
     def __init__(self):
-        """Initialize SessionManager with reference to AppState singleton."""
-        self.state = AppState()
+        self.current_session = None
+        self.current_user = None
+        self.current_scope = None
     
-    # TODO: Implement methods
-    # We'll do these one by one!
-
-    def start_session(self, name: str, scope: str, temporary: bool = False) -> str | None:
-        """Create a new temporary session and set it as current session."""
-        if not self.state.is_authenticated:
-            raise AuthenticationError("User must be logged in to start a session.")
- 
-        with QueryDB() as db:
-            session_id = db.create_session(
-                user_id=self.state.current_user_id,
-                name=name,
-                scope=scope,
-                is_temporary=temporary,
-            )
-
-        if not session_id:
-            logger.error("Failed to create session.")
-            return None
-
-        logger.info(f"Session started successfully with ID: {session_id}")
-        self.state.current_session_id = session_id
-        return session_id
-    
-
+    def start_session(self, user_id: str, name: str, scope: str) -> str | None:
+        """Start a new session and set it as current."""
+        if user_id:
+            with QueryDB() as db:
+                session_id = db.create_session(user_id, name, scope, is_saved=False)
+                if session_id:
+                    # Get the full session object
+                    self.current_session = db.get_session(session_id)
+                    return session_id
+        return None
+         
     def get_current_session(self) -> dict | None:
-        """Get the current session details from database."""
-        if not self.state.current_session_id:
-            logger.warning("No active session")
-            return None
-        
-        with QueryDB() as db:
-            session = db.get_session(self.state.current_session_id)
-        
-        if not session:
-            logger.error(f"Session {self.state.current_session_id} not found in database")
-            return None
-            
-        logger.info(f"Retrieved session: {session.get('name', 'Unknown')}")
-        return session
+        """Get the current session."""
+        return self.current_session
+    
+    def set_current_session(self, session_id: str) -> dict | None:
+        """Set an existing session as current by its ID."""
+        if session_id:
+            with QueryDB() as db:
+                self.current_session = db.get_session(session_id)
+                return self.current_session
+        return None
+    
+    def list_sessions(self, user_id: str | None = None) -> list[dict]:
+        """List all sessions for a user. Returns empty list if user_id is None."""
+        if user_id:
+            with QueryDB() as db:
+                return db.list_sessions(user_id)
+        return []
+    
+    def add_query_to_session(self, query_id: str) -> dict | None:
+        """Add a query to the current session."""
+        if self.current_session and query_id:
+            session_id = self.current_session.get('id')
+            if session_id:
+                with QueryDB() as db:
+                    db.add_query_to_session(session_id, query_id)
+                    return self.current_session
+        return None
 
-
-
-if __name__ == "__main__":
-    # Test the session manager
-
-    # Step 1: Create a new user directly in the database
-    with QueryDB() as db_test:
-        user_id = db_test.create_user("test_user")
-        logger.info(f"User created with ID: {user_id}")
-
-    # Step 2: Set user in AppState (to simulate login)
-    session_manager = SessionManager()
-    session_manager.state.current_user_id = user_id
-
-    # Step 3: Start a temporary session
-    session_id = session_manager.start_session(
-        name="Test Session",
-        scope="Revelation chapters 1-3",
-        temporary=True,
-    )
-    logger.info(f"Session started with ID: {session_id}")
-
-    # Step 4: Get current session details
-    session_details = session_manager.get_current_session()
-    print(f"Session data: {session_details}")
+    def save_session(self) -> dict | None:
+        """Save the current session (mark as permanent)."""
+        if self.current_session:
+            session_id = self.current_session.get('id')
+            if session_id:
+                with QueryDB() as db:
+                    db.save_session(session_id)
+                    return self.current_session
+        return None
+    
+    def delete_session(self) -> bool:
+        """Delete the current session."""
+        if self.current_session:
+            session_id = self.current_session.get('id')
+            if session_id:
+                with QueryDB() as db:
+                    result = db.delete_session(session_id)
+                    if result:
+                        self.current_session = None  # Clear current session
+                    return result
+        return False
+    
+    def get_session_queries(self) -> list[dict]:
+        """Get all queries for the current session."""
+        if self.current_session:
+            session_id = self.current_session.get('id')
+            if session_id:
+                with QueryDB() as db:
+                    return db.get_session_queries(session_id)
+        return []
+    
+    def clear_session_cache(self) -> bool:
+        """Clear the cache for the current session."""
+        if self.current_session:
+            session_id = self.current_session.get('id')
+            if session_id:
+                with QueryDB() as db:
+                    return db.clear_session_cache(session_id)
+        return False

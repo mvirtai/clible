@@ -89,6 +89,14 @@ class QueryDB:
         self.conn.commit()
 
 
+        # add translations col
+        try:
+            self.cur.execute("ALTER TABLE queries ADD COLUMN translation_id TEXT REFERENCES translations(id)")
+        except sqlite3.OperationalError:
+            # if exists, ignore
+            pass
+
+
     def _create_user_tables(self):
         self.cur.executescript(
             """
@@ -212,7 +220,7 @@ class QueryDB:
     #   SESSION LOGIC
     # ---------------------
 
-    def create_session(self, user_id: str, name: str, scope: str, is_temporary: bool = False) -> str | None:
+    def create_session(self, user_id: str, name: str, scope: str, is_saved: bool = False) -> str | None:
         session_id = str(uuid.uuid4())[:8]
         if session_id and user_id:
             self.cur.execute(
@@ -222,7 +230,7 @@ class QueryDB:
                     user_id,
                     name,
                     scope,
-                    0 if is_temporary else 1,  # Fixed: is_saved=0 for temporary, is_saved=1 for saved
+                    1 if is_saved else 0,
                 ),
             )
             self.conn.commit()
@@ -406,7 +414,11 @@ class QueryDB:
             verse_id = str(uuid.uuid4())[:8]
             self.cur.execute(
                 """
-                INSERT INTO verses (
+                INSERT INTO verses (Select option: 5
+Enter session ID: 4d6d3416
+Failed to clear session cache.
+
+
                     id, query_id, book_id, chapter, verse, text, snippet
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -492,26 +504,32 @@ class QueryDB:
         return result
 
     def get_verses_by_query_id(self, query_id: str) -> list[dict]:
-        """Get verses for a specific query ID. Returns empty list if query not found."""
-        query_data = self.get_single_saved_query(query_id)
-        if query_data:
-            return query_data.get("verses", [])
-        return []
+        return self.get_single_saved_query(query_id)["verses"]
 
     # ---------------------
     #   RESET DATABASE
     # ---------------------
 
     def _reset_database(self):
+        # Temporarily disable foreign key checks
+        self.cur.execute("PRAGMA foreign_keys = OFF;")
+        
         self.cur.executescript(
             """
+            DROP TABLE IF EXISTS session_queries_cache;
+            DROP TABLE IF EXISTS session_queries;
+            DROP TABLE IF EXISTS sessions;
+            DROP TABLE IF EXISTS users;
+            DROP TABLE IF EXISTS verses;
             DROP TABLE IF EXISTS queries;
             DROP TABLE IF EXISTS books;
-            DROP TABLE IF EXISTS verses;
             DROP TABLE IF EXISTS translations;
             """
         )
-
+        
+        # Re-enable foreign key checks
+        self.cur.execute("PRAGMA foreign_keys = ON;")
+        self.conn.commit() 
     # ---------------------
     #   ANALYTICS
     # ---------------------
