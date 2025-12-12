@@ -9,8 +9,10 @@ RUN uv sync --frozen
 
 COPY app /workspace/app
 COPY tests /workspace/tests
-
-RUN uv run pytest tests/
+COPY data /workspace/data
+ENV PYTHONPATH=/workspace
+ENV TESTPATH=/workspace/tests
+RUN uv run pytest $TESTPATH -v
 
 ##################
 FROM python:3.12-slim AS runtime
