@@ -34,7 +34,7 @@ tasks:
     deps: [build]
     cmds:
       - docker tag {{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}} {{.REGISTRY}}/{{.IMAGE}}:{{.PROMO_TAG}}
-      - echo "Tagged {{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}} -> {{PROMO_TAG}}"
+      - echo "Tagged {{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}} -> {{.PROMO_TAG}}"
 
   push:
     desc: Push both image tag and latest tag
