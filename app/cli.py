@@ -1,9 +1,7 @@
 from pathlib import Path
 import click
-from loguru import logger
 
 from app.export import export_query_to_markdown, EXPORT_DIR
-from app.session_manager import SessionManager
 from app.ui import console, spacing_before_menu, spacing_after_output
 from app.menus.menu_utils import prompt_menu_choice
 from app.menus.menus import MAIN_MENU, ANALYTICS_MENU, EXPORTS_MENU, SESSION_MENU
@@ -100,12 +98,12 @@ def run_analytic_menu():
                 all_saved_verses = db.show_all_saved_queries()
                 for verse in all_saved_verses:
                     console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
-                # spacing_before_menu()
-                # query_id = input("Give ID: ").strip()
-                # verse_data = db.get_verses_by_query_id(query_id)
-                # if verse_data:
-                #     analyzer = WordFrequencyAnalyzer()
-                #     analyzer.show_word_frequency_analysis(verse_data)  
+                spacing_before_menu()
+                query_id = input("Give ID: ").strip()
+                verse_data = db.get_verses_by_query_id(query_id)
+                if verse_data:
+                    analyzer = WordFrequencyAnalyzer()
+                    analyzer.show_word_frequency_analysis(verse_data)  
                     spacing_after_output()
                 else:
                     console.print("[red]No verses found for the given query ID.[/red]")
@@ -129,64 +127,55 @@ def run_analytic_menu():
 
 
 def run_session_menu():
-    session_manager = SessionManager()
-    user_name = click.prompt("Give your user name").strip().lower()
-    scope = click.prompt("Enter scope (e.g. 'John' or 'Corinthians')").strip()
-    console.print()
-    console.print(f"[bold cyan]User name:[/bold cyan] {user_name} || [bold green]Scope:[/bold green] {scope}")
-    with QueryDB() as db:
-        user = db.get_user_by_name(user_name)
-        user_id = user["id"] if user else None
-        console.print(f"[bold cyan]User ID:[/bold cyan] {user_id} || [bold magenta]User name:[/bold magenta] {user_name} || [bold green]Scope:[/bold green] {scope}")
-
-    current_session = session_manager.get_current_session()
-    if current_session:
-        console.print(f"[bold cyan]Session ID:[/bold cyan] {current_session['id']} || [bold magenta]Session name:[/bold magenta] {current_session['name']} || [bold green]Scope:[/bold green] {current_session['scope']}")
-    else:
-        console.print("[yellow]No current session. Available sessions:[/yellow]")
-        sessions = session_manager.list_sessions(user_id)
-        if sessions:
-            for sess in sessions:
-                console.print(f"  ID: {sess['id']} | Name: {sess['name']} | Scope: {sess['scope']}")
     while True:
         spacing_before_menu()
         choice = prompt_menu_choice(SESSION_MENU)
         if choice == 1:
-            # Start new session
-            session_id = session_manager.start_session(user_id, user_name, scope)
-            if session_id:
-                console.print(f"[bold green]✓ Session created: {session_id}[/bold green]")
-            else:
-                console.print("[red]✗ Failed to create session[/red]")
+            user_name = input("Enter your name: ").strip()
+            session_name = input("Enter session name: ").strip()
+            scope = input("Enter scope (e.g. John, Paul's letters): ").strip()
+            with QueryDB() as db:
+                user_id = db.get_or_create_default_user()
+                session_id = db.create_session(user_id, session_name, scope, is_saved=False)
+                if session_id:
+                    console.print(f"Session started successfully with ID: {session_id}")
+                else:
+                    console.print("[red]Failed to start new session.[/red]")
             spacing_after_output()
         elif choice == 2:
-            # View or set current session
-            session = session_manager.get_current_session()
-            if session:
-                console.print(f"[bold cyan]Session ID:[/bold cyan] {session['id']} || [bold magenta]Session name:[/bold magenta] {session['name']} || [bold green]Scope:[/bold green] {session['scope']}")
-            else:
-                # Prompt user to select a session
-                console.print("[yellow]No current session. Available sessions:[/yellow]")
-                sessions = session_manager.list_sessions(user_id)
-                if sessions:
-                    for sess in sessions:
-                        console.print(f"  ID: {sess['id']} | Name: {sess['name']} | Scope: {sess['scope']}")
-                    selected_session_id = input("\nEnter session ID to load: ").strip()
-                    if selected_session_id:
-                        loaded = session_manager.set_current_session(selected_session_id)
-                        if loaded:
-                            console.print(f"[bold green]✓ Loaded session: {selected_session_id}[/bold green]")
-                        else:
-                            console.print("[red]✗ Session not found[/red]")
+            session_id = input("Enter session ID: ").strip()
+            with QueryDB() as db:
+                session = db.get_session(session_id)
+                if session:
+                    console.print(f"Session resumed successfully: {session['name']}")
                 else:
-                    console.print("[dim]No sessions found for this user.[/dim]")
+                    console.print("[red]Session not found.[/red]")
             spacing_after_output()
         elif choice == 3:
-            # Delete current session
-            if session_manager.delete_session():
-                console.print("[bold green]✓ Session deleted successfully.[/bold green]")
-            else:
-                console.print("[red]✗ No active session to delete[/red]")
+            with QueryDB() as db:
+                sessions = db.list_sessions()
+                if sessions:
+                    console.print("\n[bold]Saved sessions:[/bold]")
+                    for session in sessions:
+                        console.print(f"  ID: {session['id']} | Name: {session['name']} | Scope: {session['scope']}")
+                else:
+                    console.print("[dim]No saved sessions found.[/dim]")
+            spacing_after_output()
+        elif choice == 4:
+            session_id = input("Enter session ID: ").strip()
+            with QueryDB() as db:
+                if db.delete_session(session_id):
+                    console.print("[bold green]Session deleted successfully.[/bold green]")
+                else:
+                    console.print("[red]Failed to delete session.[/red]")
+            spacing_after_output()
+        elif choice == 5:
+            session_id = input("Enter session ID: ").strip()
+            with QueryDB() as db:
+                if db.clear_session_cache(session_id):
+                    console.print("[bold green]Session cache cleared successfully.[/bold green]")
+                else:
+                    console.print("[red]Failed to clear session cache.[/red]")
             spacing_after_output()
         elif choice == 0:
             return

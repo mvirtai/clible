@@ -1,5 +1,3 @@
-
-
 class AppState:
     """
     Singleton class that holds application-level state.
