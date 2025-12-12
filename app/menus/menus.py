@@ -43,8 +43,10 @@ SESSION_MENU = {
     "title": "=== session management ===",
     "options": [
         "Start new session",
-        "View or set current session",
-        "Delete current session",
+        "Resume session",
+        "List saved sessions",
+        "Delete session",
+        "Clear session cache",
     ],
     "footer": "Return to main menu"
 }
