@@ -7,6 +7,24 @@ mock_data_path = Path(__file__).resolve().parent.parent / "data" / "mock_data.js
 
 BASE_URL = "http://bible-api.com"
 
+def fetch_book_list() -> list[str]:
+    """Fetch a list of books from bible-api.com API"""
+    url = f"{BASE_URL}/data/web"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("books", [])
+    except requests.exceptions.Timeout:
+        logger.error(f"Request to {url} timed out")
+        return []
+    except requests.exceptions.ConnectionError:
+        logger.error(f"Connection error when fetching {url}")
+        return []
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error {e.response.status_code}: {e.response.text}")
+        return []
+
 
 def fetch_by_reference(
     book: str | None = None,
@@ -98,3 +116,8 @@ def fetch_by_reference(
     except json.JSONDecodeError:
         logger.error(f"Invalid JSON response from {url}")
         return None
+
+if __name__ == "__main__":
+    books = fetch_book_list()
+    for book in books:
+        print(book["name"])

@@ -5,6 +5,8 @@ This module contains functions for rendering output to the terminal using Rich,
 including formatting verses, queries, search results, and spacing utilities.
 """
 
+from app.api import fetch_book_list
+
 from rich.console import Console, Group
 from rich.text import Text
 from rich.panel import Panel
@@ -20,6 +22,15 @@ class VerseMatch(TypedDict):
 
 # Global console instance for terminal output
 console = Console()
+
+def render_book_list() -> None:
+    """Render a list of books from the API"""
+    books = fetch_book_list()
+    for book in books:
+        # Print book ID in green and book name in cyan, reversing original color scheme
+        console.print(f"  [bold green][{book['id']} [/bold green] [bold cyan]{book['name']}[/bold cyan]")
+    spacing_after_output()
+
 
 
 def render_text_output(data: dict) -> Panel:
@@ -296,3 +307,8 @@ def spacing_after_output() -> None:
 def spacing_between_sections() -> None:
     """Add spacing between major sections."""
     add_vertical_spacing(2)
+
+
+
+if __name__ == "__main__":
+    render_book_list()
