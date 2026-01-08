@@ -195,7 +195,16 @@ class QueryDB:
         return [dict(r) for r in rows]
     
 
-    def get_or_create_default_user(self, user_name: str) -> str:
+    def get_or_create_default_user(self, user_name: str = "default") -> str:
+        """
+        Get or create a user by name.
+        
+        Args:
+            user_name: Username to get or create (default: "default")
+            
+        Returns:
+            User ID if successful, None if failed
+        """
         default_user = self.get_user_by_name(user_name)
         if default_user:
             return default_user.get("id")
@@ -204,7 +213,7 @@ class QueryDB:
             if default_user_id:
                 return default_user_id
             else:
-                logger.error("Failed to create default user.")
+                logger.error(f"Failed to create user: {user_name}")
                 return None
 
     # ---------------------
