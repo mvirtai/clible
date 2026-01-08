@@ -169,9 +169,8 @@ class QueryDB:
             if row:
                 return dict(row)
             else:
-                new_user_id = self.create_user(user_name)
-                if new_user_id:
-                    return self.get_user_by_id(new_user_id)
+                self.create_user(user_name)
+                return self.get_user_by_name(user_name)
         return None
 
 
@@ -196,17 +195,17 @@ class QueryDB:
         return [dict(r) for r in rows]
     
 
-    def get_or_create_default_user(self) -> str:
-        default_user = self.get_user_by_name("default")
+    def get_or_create_default_user(self, user_name: str) -> str:
+        default_user = self.get_user_by_name(user_name)
         if default_user:
             return default_user.get("id")
         else:
-            default_user_id = self.create_user("default")
+            default_user_id = self.create_user(user_name)
             if default_user_id:
                 return default_user_id
             else:
                 logger.error("Failed to create default user.")
-                raise Exception("Failed to create default user.")
+                return None
 
     # ---------------------
     #   SESSION LOGIC
