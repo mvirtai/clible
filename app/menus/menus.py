@@ -15,7 +15,8 @@ API_MENU = {
     "options": [
         "Fetch verse by reference",
         "Fetch chapter by reference",
-        "Fetch random verse"
+        "Fetch random verse",
+        "Fetch multiple books"
     ],
     "footer": "Return to main menu"
 }
@@ -26,6 +27,9 @@ ANALYTICS_MENU = {
         "Search word",
         "Word frequency analysis",
         "Phrase analysis",
+        "Analyze current session",
+        "Analyze multiple queries",
+        "Analyze by book",
     ],
     "footer": "Return to main menu",
 }

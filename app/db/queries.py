@@ -622,6 +622,97 @@ class QueryDB:
         rows = self.cur.fetchall()
         return [(row["book_name"], row["chapter"], row["count"]) for row in rows]
 
+    def get_verses_by_book(self, book_name: str) -> list[dict]:
+        """
+        Get all verses for a specific book name.
+        
+        Args:
+            book_name: Name of the book (e.g., "John", "Genesis")
+        
+        Returns:
+            List of verse dictionaries with book_name, chapter, verse, text
+        """
+        self.cur.execute(
+            """
+            SELECT 
+                b.name as book_name,
+                v.chapter,
+                v.verse,
+                v.text
+            FROM verses v
+            JOIN books b ON v.book_id = b.id
+            WHERE b.name = ?
+            ORDER BY v.chapter, v.verse
+            """,
+            (book_name,)
+        )
+        return [dict(row) for row in self.cur.fetchall()]
+    
+    def get_all_verses_from_session(self, session_id: str) -> list[dict]:
+        """
+        Get all verses from all queries in a session (both saved and cached).
+        
+        Args:
+            session_id: ID of the session
+            
+        Returns:
+            List of verse dictionaries
+        """
+        all_verses = []
+        
+        # Get verses from saved queries
+        self.cur.execute(
+            """
+            SELECT DISTINCT v.id, b.name as book_name, v.chapter, v.verse, v.text
+            FROM session_queries sq
+            JOIN verses v ON sq.query_id = v.query_id
+            JOIN books b ON v.book_id = b.id
+            WHERE sq.session_id = ?
+            ORDER BY b.name, v.chapter, v.verse
+            """,
+            (session_id,)
+        )
+        all_verses.extend([dict(row) for row in self.cur.fetchall()])
+        
+        # Get verses from cached queries
+        cached = self.get_cached_queries_for_session(session_id)
+        for cached_query in cached:
+            verse_data = cached_query.get('verse_data', {})
+            verses = verse_data.get('verses', [])
+            all_verses.extend(verses)
+        
+        return all_verses
+    
+    def get_verses_from_multiple_queries(self, query_ids: list[str]) -> list[dict]:
+        """
+        Get all verses from multiple query IDs.
+        
+        Args:
+            query_ids: List of query IDs
+            
+        Returns:
+            List of verse dictionaries
+        """
+        if not query_ids:
+            return []
+        
+        placeholders = ','.join('?' * len(query_ids))
+        self.cur.execute(
+            f"""
+            SELECT DISTINCT
+                b.name as book_name,
+                v.chapter,
+                v.verse,
+                v.text
+            FROM verses v
+            JOIN books b ON v.book_id = b.id
+            WHERE v.query_id IN ({placeholders})
+            ORDER BY b.name, v.chapter, v.verse
+            """,
+            query_ids
+        )
+        return [dict(row) for row in self.cur.fetchall()]
+
 
     def __enter__(self):
         return self
@@ -630,6 +721,12 @@ class QueryDB:
         self.conn.close()
 
 
+
+
+
+
+
 if __name__ == "__main__":
     db = QueryDB()
     db._reset_database()
+

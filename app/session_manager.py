@@ -228,6 +228,45 @@ class SessionManager:
         return False
 
 
+    def get_verses_by_book(self, book_name: str) -> list[dict]:
+        """
+        Get all verses for a specific book name.
+        
+        Args:
+            book_name: Name of the book (e.g., "John", "Genesis")
+        
+        Returns:
+            List of verse dictionaries
+        """
+        with self._get_db() as db:
+            return db.get_verses_by_book(book_name)
+    
+    def get_current_session_verses(self) -> list[dict]:
+        """
+        Get all verses from the current session.
+        
+        Returns:
+            List of verse dictionaries, empty list if no active session
+        """
+        if not self.state.current_session_id:
+            logger.warning("No active session")
+            return []
+        
+        with self._get_db() as db:
+            return db.get_all_verses_from_session(self.state.current_session_id)
+    
+    def get_verses_from_queries(self, query_ids: list[str]) -> list[dict]:
+        """
+        Get all verses from multiple query IDs.
+        
+        Args:
+            query_ids: List of query IDs
+            
+        Returns:
+            List of verse dictionaries
+        """
+        with self._get_db() as db:
+            return db.get_verses_from_multiple_queries(query_ids)
 
 if __name__ == "__main__":
     # Test the session manager

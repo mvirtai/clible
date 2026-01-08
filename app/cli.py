@@ -1,6 +1,7 @@
 from pathlib import Path
 import click
 
+from app.api import fetch_book_list
 from app.export import export_query_to_markdown, EXPORT_DIR
 from app.ui import console, spacing_before_menu, spacing_after_output
 from app.menus.menu_utils import prompt_menu_choice
@@ -13,6 +14,30 @@ from app.db.queries import QueryDB
 from app.analytics.word_frequency import WordFrequencyAnalyzer
 from app.analytics.phrase_analysis import PhraseAnalyzer
 from app.session_manager import SessionManager
+from app.ui import render_book_list
+
+BOOK_LIST_MENU = {
+    "title": "=== book list menu ===",
+    "options": [
+        "Render book list",
+        "Fetch book list",
+    ],
+    "footer": "Exit"
+}
+
+def run_book_list_menu():
+    while True:
+        spacing_before_menu()
+        choice = prompt_menu_choice(BOOK_LIST_MENU)
+
+        if choice == 1:
+            render_book_list()
+            spacing_after_output()
+        elif choice == 2:
+            fetch_book_list()
+            spacing_after_output()
+        elif choice == 0:
+            return
 
 
 def select_from_list(items: list[dict], prompt_text: str = "Select item") -> dict | None:
@@ -264,6 +289,198 @@ def run_analytic_menu():
                     spacing_after_output()
                 else:
                     console.print("[red]No verses found for the given query.[/red]")
+                    spacing_after_output()
+                
+                input("Press any key to continue...")
+        elif choice == 4:
+            # Analyze current session
+            session_manager = SessionManager()
+            
+            if not session_manager.state.has_active_session:
+                console.print("[yellow]No active session. Please start or resume a session first.[/yellow]")
+                spacing_after_output()
+                input("Press any key to continue...")
+                continue
+            
+            console.print(f"\n[bold cyan]Analyzing current session...[/bold cyan]")
+            verse_data = session_manager.get_current_session_verses()
+            
+            if not verse_data:
+                console.print("[yellow]No verses found in current session.[/yellow]")
+                spacing_after_output()
+                input("Press any key to continue...")
+                continue
+            
+            console.print(f"[green]Found {len(verse_data)} verses in session[/green]\n")
+            
+            # Choose analysis type
+            console.print("[bold]Select analysis type:[/bold]")
+            console.print("  [1] Word frequency")
+            console.print("  [2] Phrase analysis")
+            console.print("  [3] Both")
+            analysis_choice = input("\nYour choice: ").strip()
+            
+            if analysis_choice in ['1', '3']:
+                console.print("\n[bold cyan]Word Frequency Analysis[/bold cyan]")
+                analyzer = WordFrequencyAnalyzer()
+                analyzer.show_word_frequency_analysis(verse_data)
+                spacing_after_output()
+            
+            if analysis_choice in ['2', '3']:
+                console.print("\n[bold cyan]Phrase Analysis[/bold cyan]")
+                analyzer = PhraseAnalyzer()
+                analyzer.show_phrase_analysis(verse_data)
+                spacing_after_output()
+            
+            input("Press any key to continue...")
+        elif choice == 5:
+            # Analyze multiple queries
+            with QueryDB() as db:
+                all_saved_queries = db.show_all_saved_queries()
+                
+                if not all_saved_queries:
+                    console.print("[dim]No saved queries found.[/dim]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print("\n[bold]Saved queries:[/bold]")
+                for idx, query in enumerate(all_saved_queries, start=1):
+                    console.print(f"[bold cyan][{idx}][/bold cyan] ID: {query['id']} | {query['reference']} | {query['verse_count']} verses")
+                
+                console.print("\n[dim]Enter query numbers or IDs separated by commas (e.g., 1,2,5 or abc123,def456)[/dim]")
+                user_input = input("\nYour selection: ").strip()
+                
+                if not user_input:
+                    console.print("[yellow]Analysis cancelled.[/yellow]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                # Parse selection
+                selected_ids = []
+                for item in user_input.split(','):
+                    item = item.strip()
+                    # Try as number first
+                    try:
+                        idx = int(item)
+                        if 1 <= idx <= len(all_saved_queries):
+                            selected_ids.append(all_saved_queries[idx - 1]['id'])
+                    except ValueError:
+                        # Try as ID
+                        if any(q['id'] == item for q in all_saved_queries):
+                            selected_ids.append(item)
+                
+                if not selected_ids:
+                    console.print("[red]No valid queries selected.[/red]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print(f"\n[green]Selected {len(selected_ids)} queries[/green]")
+                
+                # Get combined verses
+                verse_data = db.get_verses_from_multiple_queries(selected_ids)
+                
+                if not verse_data:
+                    console.print("[yellow]No verses found in selected queries.[/yellow]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print(f"[green]Found {len(verse_data)} total verses[/green]\n")
+                
+                # Choose analysis type
+                console.print("[bold]Select analysis type:[/bold]")
+                console.print("  [1] Word frequency")
+                console.print("  [2] Phrase analysis")
+                console.print("  [3] Both")
+                analysis_choice = input("\nYour choice: ").strip()
+                
+                if analysis_choice in ['1', '3']:
+                    console.print("\n[bold cyan]Word Frequency Analysis[/bold cyan]")
+                    analyzer = WordFrequencyAnalyzer()
+                    analyzer.show_word_frequency_analysis(verse_data)
+                    spacing_after_output()
+                
+                if analysis_choice in ['2', '3']:
+                    console.print("\n[bold cyan]Phrase Analysis[/bold cyan]")
+                    analyzer = PhraseAnalyzer()
+                    analyzer.show_phrase_analysis(verse_data)
+                    spacing_after_output()
+                
+                input("Press any key to continue...")
+        elif choice == 6:
+            # Analyze by book
+            with QueryDB() as db:
+                books = db.get_unique_books()
+                
+                if not books:
+                    console.print("[yellow]No books found in database.[/yellow]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print("\n[bold]Available books:[/bold]")
+                for idx, book in enumerate(books, start=1):
+                    console.print(f"[bold cyan][{idx}][/bold cyan] {book}")
+                
+                console.print("\n[dim]Enter book number or name[/dim]")
+                user_input = input("\nYour selection: ").strip()
+                
+                if not user_input:
+                    console.print("[yellow]Analysis cancelled.[/yellow]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                # Try as number first
+                selected_book = None
+                try:
+                    idx = int(user_input)
+                    if 1 <= idx <= len(books):
+                        selected_book = books[idx - 1]
+                except ValueError:
+                    # Try as book name
+                    if user_input in books:
+                        selected_book = user_input
+                
+                if not selected_book:
+                    console.print("[red]Invalid book selection.[/red]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print(f"\n[bold cyan]Analyzing book: {selected_book}[/bold cyan]")
+                
+                # Get all verses for the book
+                verse_data = db.get_verses_by_book(selected_book)
+                
+                if not verse_data:
+                    console.print(f"[yellow]No verses found for {selected_book}.[/yellow]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print(f"[green]Found {len(verse_data)} verses[/green]\n")
+                
+                # Choose analysis type
+                console.print("[bold]Select analysis type:[/bold]")
+                console.print("  [1] Word frequency")
+                console.print("  [2] Phrase analysis")
+                console.print("  [3] Both")
+                analysis_choice = input("\nYour choice: ").strip()
+                
+                if analysis_choice in ['1', '3']:
+                    console.print("\n[bold cyan]Word Frequency Analysis[/bold cyan]")
+                    analyzer = WordFrequencyAnalyzer()
+                    analyzer.show_word_frequency_analysis(verse_data)
+                    spacing_after_output()
+                
+                if analysis_choice in ['2', '3']:
+                    console.print("\n[bold cyan]Phrase Analysis[/bold cyan]")
+                    analyzer = PhraseAnalyzer()
+                    analyzer.show_phrase_analysis(verse_data)
                     spacing_after_output()
                 
                 input("Press any key to continue...")
