@@ -13,6 +13,62 @@ from app.db.queries import QueryDB
 from app.analytics.word_frequency import WordFrequencyAnalyzer
 from app.analytics.phrase_analysis import PhraseAnalyzer
 from app.session_manager import SessionManager
+
+
+def select_from_list(items: list[dict], prompt_text: str = "Select item") -> dict | None:
+    """
+    Display numbered list and let user select by number or ID.
+    
+    Args:
+        items: List of dictionaries with 'id' key
+        prompt_text: Text to show in prompt
+        
+    Returns:
+        Selected item dict or None if cancelled/invalid
+    """
+    if not items:
+        return None
+    
+    # Display numbered list
+    for idx, item in enumerate(items, start=1):
+        console.print(f"[bold cyan][{idx}][/bold cyan] ", end="")
+        
+        # Display item info based on type
+        if 'name' in item:  # Session item
+            status = "💾 Saved" if item.get('is_saved') else "⏱️  Temporary"
+            console.print(f"{status} | ID: {item['id']} | Name: {item['name']}", end="")
+            if 'scope' in item:
+                console.print(f" | Scope: {item['scope']}")
+            else:
+                console.print()
+        elif 'reference' in item:  # Query item
+            verse_count = item.get('verse_count', 0)
+            console.print(f"ID: {item['id']} | Reference: {item['reference']} | Verses: {verse_count}")
+        else:  # Generic item
+            console.print(f"ID: {item['id']}")
+    
+    # Get user input
+    user_input = input(f"\n{prompt_text} (number or ID): ").strip()
+    
+    if not user_input:
+        return None
+    
+    # Try to parse as number first
+    try:
+        idx = int(user_input)
+        if 1 <= idx <= len(items):
+            return items[idx - 1]
+        else:
+            console.print(f"[red]Invalid number. Please select 1-{len(items)}[/red]")
+            return None
+    except ValueError:
+        # Not a number, try to match by ID
+        for item in items:
+            if item['id'] == user_input:
+                return item
+        
+        console.print("[red]Invalid ID[/red]")
+        return None
 from app.session_manager import SessionManager
 
 def handle_export(query_id: str):
@@ -38,20 +94,28 @@ def run_exports_menu():
 
         # Render all saved queries
         with QueryDB() as db: 
-            all_saved_verses = db.show_all_saved_queries()
+            all_saved_queries = db.show_all_saved_queries()
 
-        if not all_saved_verses:
+        if not all_saved_queries:
             console.print("[dim]No saved queries found.[/dim]")
+            spacing_before_menu()
         else:
             console.print("\n[bold]Saved queries:[/bold]")
-            for verse in all_saved_verses:
-                console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
-        spacing_before_menu()
 
         choice = prompt_menu_choice(EXPORTS_MENU)
         if choice == 1:
-            query_id = input("\nGive ID: ").strip()
-            handle_export(query_id)
+            if not all_saved_queries:
+                console.print("[yellow]No queries to export.[/yellow]")
+                input("Press any key to continue...")
+                continue
+                
+            selected_query = select_from_list(all_saved_queries, "Select query to export")
+            
+            if selected_query:
+                handle_export(selected_query['id'])
+            else:
+                console.print("[yellow]Export cancelled.[/yellow]")
+            
             spacing_after_output()
         elif choice == 0:
             return
@@ -147,33 +211,62 @@ def run_analytic_menu():
             input("Press any key to continue...")
         elif choice == 2:
             with QueryDB() as db:
-                all_saved_verses = db.show_all_saved_queries()
-                for verse in all_saved_verses:
-                    console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
-                spacing_before_menu()
-                query_id = input("Give ID: ").strip()
-                verse_data = db.get_verses_by_query_id(query_id)
+                all_saved_queries = db.show_all_saved_queries()
+                
+                if not all_saved_queries:
+                    console.print("[dim]No saved queries found.[/dim]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print("\n[bold]Saved queries:[/bold]")
+                selected_query = select_from_list(all_saved_queries, "Select query for word frequency analysis")
+                
+                if not selected_query:
+                    console.print("[yellow]Analysis cancelled.[/yellow]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                verse_data = db.get_verses_by_query_id(selected_query['id'])
                 if verse_data:
                     analyzer = WordFrequencyAnalyzer()
                     analyzer.show_word_frequency_analysis(verse_data)  
                     spacing_after_output()
                 else:
-                    console.print("[red]No verses found for the given query ID.[/red]")
+                    console.print("[red]No verses found for the given query.[/red]")
                     spacing_after_output()
+                
+                input("Press any key to continue...")
         elif choice == 3:
             with QueryDB() as db:
-                all_saved_verses = db.show_all_saved_queries()
-                for verse in all_saved_verses:
-                    console.print(f"  ID: {verse['id']} | Reference: {verse['reference']} | Verses: {verse['verse_count']}")
-                spacing_before_menu()
-                query_id = input("Give ID: ").strip()
-                verse_data = db.get_verses_by_query_id(query_id)
+                all_saved_queries = db.show_all_saved_queries()
+                
+                if not all_saved_queries:
+                    console.print("[dim]No saved queries found.[/dim]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                console.print("\n[bold]Saved queries:[/bold]")
+                selected_query = select_from_list(all_saved_queries, "Select query for phrase analysis")
+                
+                if not selected_query:
+                    console.print("[yellow]Analysis cancelled.[/yellow]")
+                    spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                verse_data = db.get_verses_by_query_id(selected_query['id'])
                 if verse_data:
                     analyzer = PhraseAnalyzer()
                     analyzer.show_phrase_analysis(verse_data)
-                else:
-                    console.print("[red]No verses found for the given query ID.[/red]")
                     spacing_after_output()
+                else:
+                    console.print("[red]No verses found for the given query.[/red]")
+                    spacing_after_output()
+                
+                input("Press any key to continue...")
         elif choice == 0:
             return
 
@@ -231,13 +324,11 @@ def run_session_menu(session_manager: SessionManager):
                     continue
                 
                 console.print("\n[bold]Your sessions:[/bold]")
-                for session in sessions:
-                    status = "💾 Saved" if session.get('is_saved') else "⏱️  Temporary"
-                    console.print(f"  {status} | ID: {session['id']} | Name: {session['name']} | Scope: {session['scope']}")
+                selected_session = select_from_list(sessions, "Enter session to resume")
                 
-                session_id = input("\nEnter session ID to resume: ").strip()
-                
-                if session_manager.resume_session(session_id):
+                if not selected_session:
+                    console.print("[yellow]Resume cancelled.[/yellow]")
+                elif session_manager.resume_session(selected_session['id']):
                     resumed = session_manager.get_current_session()
                     console.print(f"[bold green]✓ Resumed session: {resumed['name']}[/bold green]")
                 else:
@@ -308,20 +399,21 @@ def run_session_menu(session_manager: SessionManager):
                     continue
                 
                 console.print("\n[bold]Your sessions:[/bold]")
-                for session in sessions:
-                    status = "💾 Saved" if session.get('is_saved') else "⏱️  Temporary"
-                    console.print(f"  {status} | ID: {session['id']} | Name: {session['name']}")
+                selected_session = select_from_list(sessions, "Enter session to delete")
                 
-                session_id = input("\nEnter session ID to delete: ").strip()
-                confirm = input(f"Are you sure you want to delete this session? (yes/no): ").strip().lower()
-                
-                if confirm == 'yes':
-                    if session_manager.delete_session(session_id):
-                        console.print("[bold green]✓ Session deleted successfully.[/bold green]")
-                    else:
-                        console.print("[red]❌ Failed to delete session.[/red]")
-                else:
+                if not selected_session:
                     console.print("[yellow]Deletion cancelled.[/yellow]")
+                else:
+                    # Show confirmation with session name
+                    confirm = input(f"Delete '{selected_session['name']}'? (yes/no): ").strip().lower()
+                    
+                    if confirm == 'yes':
+                        if session_manager.delete_session(selected_session['id']):
+                            console.print("[bold green]✓ Session deleted successfully.[/bold green]")
+                        else:
+                            console.print("[red]❌ Failed to delete session.[/red]")
+                    else:
+                        console.print("[yellow]Deletion cancelled.[/yellow]")
                     
             except Exception as e:
                 console.print(f"[red]❌ Error: {e}[/red]")
@@ -341,24 +433,14 @@ def run_session_menu(session_manager: SessionManager):
                     continue
                 
                 console.print("\n[bold]Your sessions:[/bold]")
-                for session in sessions:
-                    console.print(f"  ID: {session['id']} | Name: {session['name']}")
+                selected_session = select_from_list(sessions, "Enter session to clear cache")
                 
-                session_id = input("\nEnter session ID to clear cache: ").strip()
-                
-                # Verify ownership before clearing cache
-                session = None
-                for s in sessions:
-                    if s['id'] == session_id:
-                        session = s
-                        break
-                
-                if not session:
-                    console.print("[red]❌ Session not found or doesn't belong to you.[/red]")
+                if not selected_session:
+                    console.print("[yellow]Operation cancelled.[/yellow]")
                 else:
                     with QueryDB() as db:
-                        if db.clear_session_cache(session_id):
-                            console.print("[bold green]✓ Session cache cleared successfully.[/bold green]")
+                        if db.clear_session_cache(selected_session['id']):
+                            console.print(f"[bold green]✓ Cache cleared for session: {selected_session['name']}[/bold green]")
                         else:
                             console.print("[red]❌ Failed to clear session cache.[/red]")
                             
