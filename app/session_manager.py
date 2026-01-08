@@ -27,9 +27,15 @@ class SessionManager:
     stored in AppState singleton.
     """
     
-    def __init__(self):
-        """Initialize SessionManager with reference to AppState singleton."""
+    def __init__(self, db_path=None):
+        """
+        Initialize SessionManager with reference to AppState singleton.
+        
+        Args:
+            db_path: Optional path to database file (for testing)
+        """
         self.state = AppState()
+        self.db_path = db_path
     
     # TODO: Implement methods
     # We'll do these one by one!
@@ -39,7 +45,7 @@ class SessionManager:
         if not self.state.is_authenticated:
             raise AuthenticationError("User must be logged in to start a session.")
  
-        with QueryDB() as db:
+        with QueryDB(self.db_path) as db:
             session_id = db.create_session(
                 user_id=self.state.current_user_id,
                 name=name,
@@ -55,92 +61,162 @@ class SessionManager:
         self.state.current_session_id = session_id
         return session_id
     
-def end_session(self) -> bool:
-    """End current session, keeping data in cache."""
-    if not self.state.current_session_id:
-        logger.warning("No active session to end")
-        return False
-    
-    session_id = self.state.current_session_id
-    self.state.current_session_id = None  # Clear from AppState
-    
-    logger.info(f"Session {session_id} ended (data preserved in cache)")
-    return True
 
-    
-    def save_current_session(self) -> bool:
-        """Save current session into database."""
-        session_id = self.state.current_session_id
-        if not session_id:
-            logger.warning("No active session to end.")
-            return False
+    def end_session(self) -> bool:
+        """
+        End current session, keeping data in cache.
         
-        with QueryDB() as db:
-            db.save_session(session_id)
-            logger.info(f"Session {session_id}")
-            return True
-
-
-    def save_current_session(self) -> bool:
+        This clears the session from AppState but preserves data in database.
+        User can resume the session later.
+        
+        Returns:
+            bool: True if session ended successfully, False if no active session
+        """
         if not self.state.current_session_id:
-            logger.warning("No active session to save.")
+            logger.warning("No active session to end")
             return False
-        with QueryDB() as db:
-            db.save_session(self.state.current_session_id)
-            logger.info(f"Session {self.state.current_session_id} saved.")
-            return True
-
+        
+        session_id = self.state.current_session_id
+        self.state.current_session_id = None  # Clear from AppState
+        
+        logger.info(f"Session {session_id} ended (data preserved in cache)")
+        return True
     
-    def list_user_sessions(self) -> list[dict]:
-        if not self.state.is_authenticated:
-            raise AuthenticationError("User must be logged in to list sessions.")
-        
-        with QueryDB() as db:
-            sessions = db.list_sessions(self.state.current_user_id)
-            return sessions
 
-
-    def resume_session(self, session_id: str) -> False:
-        if not self.state.is_authenticated:
-            raise AuthenticationError
+    def get_current_session(self) -> dict | None:
+        """Get the current session details from database."""
+        if not self.state.current_session_id:
+            logger.warning("No active session")
+            return None
         
-        with QueryDB() as db:
+        with QueryDB(self.db_path) as db:
+            session = db.get_session(self.state.current_session_id)
+        
+        if not session:
+            logger.error(f"Session {self.state.current_session_id} not found in database")
+            return None
+            
+        logger.info(f"Retrieved session: {session.get('name', 'Unknown')}")
+        return session
+    
+
+    def save_current_session(self) -> bool:
+        """
+        Save current temporary session as permanent.
+        
+        Changes is_saved flag from 0 to 1 in database.
+        This prevents automatic cleanup of the session.
+        
+        Returns:
+            bool: True if saved successfully, False otherwise
+        """
+        if not self.state.current_session_id:
+            logger.warning("No active session to save")
+            return False
+        
+        with QueryDB(self.db_path) as db:
+            db.save_session(self.state.current_session_id)
+        
+        logger.info(f"Session {self.state.current_session_id} saved as permanent")
+        return True
+    
+
+    def resume_session(self, session_id: str) -> bool:
+        """
+        Resume an existing session and set it as current.
+        
+        Security: Verifies that the session belongs to the current user.
+        
+        Args:
+            session_id: ID of the session to resume
+            
+        Returns:
+            bool: True if resumed successfully, False otherwise
+            
+        Raises:
+            AuthenticationError: If user is not authenticated
+        """
+        if not self.state.is_authenticated:
+            raise AuthenticationError("User must be logged in to resume a session")
+        
+        with QueryDB(self.db_path) as db:
             session = db.get_session(session_id)
         
-        if session["id"] != session_id:
-            logger.error(f"Session {session_id} not found in database")
+        if not session:
+            logger.error(f"Session {session_id} not found")
+            return False
+        
+        # Security check: verify session belongs to current user
+        if session.get("user_id") != self.state.current_user_id:
+            logger.error(f"Session {session_id} does not belong to current user")
             return False
         
         self.state.current_session_id = session_id
-        logger.info(f"Session {session_id} resumed.")
+        logger.info(f"Resumed session: {session.get('name', 'Unknown')}")
         return True
+    
+
+    def list_user_sessions(self) -> list[dict]:
+        """
+        List all sessions for the current user.
+        
+        Returns:
+            list[dict]: List of session dicts, empty if not authenticated
+        """
+        if not self.state.is_authenticated:
+            logger.warning("User not authenticated")
+            return []
+        
+        with QueryDB(self.db_path) as db:
+            return db.list_sessions(self.state.current_user_id)
+    
 
     def delete_session(self, session_id: str) -> bool:
-        if not self.state.is_authenticated:
-            raise AuthenticationError("User must be logged in to delete a session.")
+        """
+        Delete a session and all its data.
         
-            with QueryDB() as db:
-                return db.delete_session(session_id)
-                logger.info(f"Session {session_id} deleted.")
-                return True
-        else:
-            logger.error(f"Failed to delete session {session_id}")
-            return False
+        Security: Verifies that the session belongs to the current user.
+        Side effect: If deleting current session, clears it from AppState.
+        
+        Args:
+            session_id: ID of the session to delete
+            
+        Returns:
+            bool: True if deleted successfully, False otherwise
+            
+        Raises:
+            AuthenticationError: If user is not authenticated
+        """
+        if not self.state.is_authenticated:
+            raise AuthenticationError("User must be logged in to delete a session")
+        
+        with QueryDB(self.db_path) as db:
+            # Security check: verify session belongs to current user
+            session = db.get_session(session_id)
+            if not session:
+                logger.error(f"Session {session_id} not found")
+                return False
+            
+            if session.get("user_id") != self.state.current_user_id:
+                logger.error(f"Session {session_id} does not belong to current user")
+                return False
+            
+            # Delete the session
+            success = db.delete_session(session_id)
+        
+        if success:
+            # If we deleted the current session, clear it from AppState
+            if self.state.current_session_id == session_id:
+                self.state.current_session_id = None
+                logger.info(f"Deleted current session {session_id}")
+            else:
+                logger.info(f"Deleted session {session_id}")
+            return True
+        
+        logger.error(f"Failed to delete session {session_id}")
         return False
 
-    def clear_session_cache(self, session_id: str) -> bool:
-        if not self.state.is_authenticated:
-            raise AuthenticationError("User must be logged in to clear session cache.")
-            
-            with QueryDB() as db:
-                return db.clear_session_cache(session_id)
-                logger.info(f"Session {session_id} cache cleared.")
-                return True
-        else:
-            logger.error(f"Failed to clear session cache {session_id}")
-            return False
 
-    
 
 if __name__ == "__main__":
     # Test the session manager
@@ -162,6 +238,8 @@ if __name__ == "__main__":
     )
     logger.info(f"Session started with ID: {session_id}")
 
-    # Step 4: Save the session
-    session_manager.save_current_session()
-    logger.info(f"Session {session_id} saved.")
+    # Step 4: Get current session details
+    # session_details = session_manager.get_current_session()
+    # print(f"Session data: {session_details}")
+
+    session_manager.end_session()
