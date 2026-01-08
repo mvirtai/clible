@@ -37,6 +37,17 @@ class SessionManager:
         self.state = AppState()
         self.db_path = db_path
     
+    def _get_db(self):
+        """
+        Get QueryDB instance with appropriate db_path.
+        
+        If db_path is None, uses the default DB_PATH from QueryDB.
+        If db_path is set (e.g., for testing), uses that path.
+        """
+        if self.db_path is None:
+            return QueryDB()
+        return QueryDB(self.db_path)
+    
     # TODO: Implement methods
     # We'll do these one by one!
 
@@ -45,7 +56,7 @@ class SessionManager:
         if not self.state.is_authenticated:
             raise AuthenticationError("User must be logged in to start a session.")
  
-        with QueryDB(self.db_path) as db:
+        with self._get_db() as db:
             session_id = db.create_session(
                 user_id=self.state.current_user_id,
                 name=name,
@@ -89,7 +100,7 @@ class SessionManager:
             logger.warning("No active session")
             return None
         
-        with QueryDB(self.db_path) as db:
+        with self._get_db() as db:
             session = db.get_session(self.state.current_session_id)
         
         if not session:
@@ -114,7 +125,7 @@ class SessionManager:
             logger.warning("No active session to save")
             return False
         
-        with QueryDB(self.db_path) as db:
+        with self._get_db() as db:
             db.save_session(self.state.current_session_id)
         
         logger.info(f"Session {self.state.current_session_id} saved as permanent")
@@ -139,7 +150,7 @@ class SessionManager:
         if not self.state.is_authenticated:
             raise AuthenticationError("User must be logged in to resume a session")
         
-        with QueryDB(self.db_path) as db:
+        with self._get_db() as db:
             session = db.get_session(session_id)
         
         if not session:
@@ -167,7 +178,7 @@ class SessionManager:
             logger.warning("User not authenticated")
             return []
         
-        with QueryDB(self.db_path) as db:
+        with self._get_db() as db:
             return db.list_sessions(self.state.current_user_id)
     
 
@@ -190,7 +201,7 @@ class SessionManager:
         if not self.state.is_authenticated:
             raise AuthenticationError("User must be logged in to delete a session")
         
-        with QueryDB(self.db_path) as db:
+        with self._get_db() as db:
             # Security check: verify session belongs to current user
             session = db.get_session(session_id)
             if not session:

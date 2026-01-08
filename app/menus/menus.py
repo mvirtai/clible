@@ -44,7 +44,9 @@ SESSION_MENU = {
     "options": [
         "Start new session",
         "Resume session",
-        "List saved sessions",
+        "End current session",
+        "Save current session (make permanent)",
+        "List all sessions",
         "Delete session",
         "Clear session cache",
     ],
