@@ -94,7 +94,7 @@ def select_from_list(items: list[dict], prompt_text: str = "Select item") -> dic
         
         console.print("[red]Invalid ID[/red]")
         return None
-from app.session_manager import SessionManager
+
 
 def handle_export(query_id: str):
     if not query_id:
@@ -198,32 +198,29 @@ def run_main_menu(output: str, username: str):
             break
 
 
-    # while True:
-    #     spacing_before_menu()
-    #     choice = prompt_menu_choice(MAIN_MENU)
-
-    #     if choice == 1:
-    #         run_api_menu(output)
-    #         spacing_after_output()
-    #     elif choice == 2:
-    #         with QueryDB() as db:
-    #             queries = db.show_all_saved_queries()
-    #             for query in format_queries(queries):
-    #                 console.print(query)
-    #         spacing_after_output()
-    #         input("Press any key to continue...")
-    #     elif choice == 3:
-    #         run_analytic_menu()
-    #         spacing_after_output()
-    #     elif choice == 4:
-    #         run_exports_menu()
-    #         spacing_after_output()
-    #     elif choice == 5:
-    #         run_session_menu()
-    #         spacing_after_output()
-    #     elif choice == 0:
-    #         console.print("[bold red]Bye[/bold red]")
-    #         break
+def prompt_visualization_choice() -> tuple[bool, str]:
+    """
+    Prompt user for visualization preferences.
+    
+    Returns:
+        Tuple of (visualize: bool, display_mode: str)
+    """
+    console.print("\n[bold]Visualization Options:[/bold]")
+    console.print("  [1] Show chart in terminal")
+    console.print("  [2] Export to file (PNG)")
+    console.print("  [3] Both (terminal + export)")
+    console.print("  [0] Skip visualization")
+    
+    viz_choice = input("\nVisualize results? ").strip()
+    
+    if viz_choice == '1':
+        return True, "terminal"
+    elif viz_choice == '2':
+        return True, "export"
+    elif viz_choice == '3':
+        return True, "both"
+    else:
+        return False, "terminal"
 
 
 def run_analytic_menu():
@@ -235,6 +232,7 @@ def run_analytic_menu():
             results = handle_search_word()
             input("Press any key to continue...")
         elif choice == 2:
+            # Word frequency analysis for single query
             with QueryDB() as db:
                 all_saved_queries = db.show_all_saved_queries()
                 
@@ -253,11 +251,47 @@ def run_analytic_menu():
                     input("Press any key to continue...")
                     continue
                 
+                # Get verse data
                 verse_data = db.get_verses_by_query_id(selected_query['id'])
+                
                 if verse_data:
                     analyzer = WordFrequencyAnalyzer()
-                    analyzer.show_word_frequency_analysis(verse_data)  
+                    
+                    # Perform analysis
+                    top_words = analyzer.analyze_top(verse_data, top_n=20)
+                    vocab_info = analyzer.count_vocabulary_size(verse_data)
+                    
+                    # Display text results
+                    analyzer.show_word_frequency_analysis(verse_data)
                     spacing_after_output()
+                    
+                    # Prompt for visualization
+                    visualize, display_mode = prompt_visualization_choice()
+                    if visualize:
+                        analyzer.show_word_frequency_analysis(
+                            verse_data, 
+                            visualize=True, 
+                            viz_display=display_mode
+                        )
+                    
+                    # Ask to save to history
+                    if input("\nSave this analysis to history? (y/n): ").lower() == 'y':
+                        from app.analytics.analysis_tracker import AnalysisTracker
+                        from app.state import AppState
+                        
+                        state = AppState()
+                        tracker = AnalysisTracker(
+                            user_id=state.current_user_id,
+                            session_id=state.current_session_id
+                        )
+                        tracker.save_word_frequency_analysis(
+                            word_freq=top_words,
+                            vocab_info=vocab_info,
+                            scope_type="query",
+                            scope_details={"query_id": selected_query['id']},
+                            verse_count=len(verse_data)
+                        )
+                        console.print("[green]✓ Analysis saved to history![/green]")
                 else:
                     console.print("[red]No verses found for the given query.[/red]")
                     spacing_after_output()
@@ -287,6 +321,11 @@ def run_analytic_menu():
                     analyzer = PhraseAnalyzer()
                     analyzer.show_phrase_analysis(verse_data)
                     spacing_after_output()
+                    
+                    # Visualization prompt
+                    visualize, display_mode = prompt_visualization_choice()
+                    if visualize:
+                        analyzer.show_phrase_analysis(verse_data, visualize=True, viz_display=display_mode)
                 else:
                     console.print("[red]No verses found for the given query.[/red]")
                     spacing_after_output()
@@ -331,6 +370,16 @@ def run_analytic_menu():
                 analyzer = PhraseAnalyzer()
                 analyzer.show_phrase_analysis(verse_data)
                 spacing_after_output()
+            
+            # Visualization prompt
+            visualize, display_mode = prompt_visualization_choice()
+            if visualize:
+                if analysis_choice in ['1', '3']:
+                    analyzer = WordFrequencyAnalyzer()
+                    analyzer.show_word_frequency_analysis(verse_data, visualize=True, viz_display=display_mode)
+                if analysis_choice in ['2', '3']:
+                    analyzer = PhraseAnalyzer()
+                    analyzer.show_phrase_analysis(verse_data, visualize=True, viz_display=display_mode)
             
             input("Press any key to continue...")
         elif choice == 5:
@@ -409,7 +458,18 @@ def run_analytic_menu():
                     analyzer.show_phrase_analysis(verse_data)
                     spacing_after_output()
                 
+                # Visualization prompt
+                visualize, display_mode = prompt_visualization_choice()
+                if visualize:
+                    if analysis_choice in ['1', '3']:
+                        analyzer = WordFrequencyAnalyzer()
+                        analyzer.show_word_frequency_analysis(verse_data, visualize=True, viz_display=display_mode)
+                    if analysis_choice in ['2', '3']:
+                        analyzer = PhraseAnalyzer()
+                        analyzer.show_phrase_analysis(verse_data, visualize=True, viz_display=display_mode)
+                
                 input("Press any key to continue...")
+
         elif choice == 6:
             # Analyze by book
             with QueryDB() as db:
@@ -482,6 +542,16 @@ def run_analytic_menu():
                     analyzer = PhraseAnalyzer()
                     analyzer.show_phrase_analysis(verse_data)
                     spacing_after_output()
+                
+                # Visualization prompt
+                visualize, display_mode = prompt_visualization_choice()
+                if visualize:
+                    if analysis_choice in ['1', '3']:
+                        analyzer = WordFrequencyAnalyzer()
+                        analyzer.show_word_frequency_analysis(verse_data, visualize=True, viz_display=display_mode)
+                    if analysis_choice in ['2', '3']:
+                        analyzer = PhraseAnalyzer()
+                        analyzer.show_phrase_analysis(verse_data, visualize=True, viz_display=display_mode)
                 
                 input("Press any key to continue...")
         elif choice == 0:

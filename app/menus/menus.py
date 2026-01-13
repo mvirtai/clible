@@ -30,6 +30,7 @@ ANALYTICS_MENU = {
         "Analyze current session",
         "Analyze multiple queries",
         "Analyze by book",
+        "View analysis history"
     ],
     "footer": "Return to main menu",
 }

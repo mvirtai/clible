@@ -115,12 +115,19 @@ class PhraseAnalyzer:
         
         return formatted_trigrams
     
-    def show_phrase_analysis(self, verses: list[dict]) -> None:
+    def show_phrase_analysis(
+        self, 
+        verses: list[dict],
+        visualize: bool = False,
+        viz_display: str = "terminal"
+    ) -> None:
         """
         Display formatted phrase analysis results including bigrams and trigrams.
         
         Args:
             verses: List of verse dictionaries, each containing a 'text' field.
+            visualize: Whether to show visualizations
+            viz_display: Display mode ("terminal", "export", or "both")
         """
         bigrams = self.analyze_bigrams(verses, top_n=20)
         trigrams = self.analyze_trigrams(verses, top_n=20)
@@ -129,3 +136,10 @@ class PhraseAnalyzer:
         input("Press any key to continue...")
         format_trigrams(trigrams)
         spacing_after_output()
+        
+        # Optional visualization
+        if visualize:
+            from app.analytics.visualizations import AnalyticsVisualizer
+            viz = AnalyticsVisualizer()
+            viz.plot_phrase_frequency(bigrams, title="Top Bigrams", display=viz_display)
+            viz.plot_phrase_frequency(trigrams, title="Top Trigrams", display=viz_display)
