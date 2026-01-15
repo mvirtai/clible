@@ -528,45 +528,38 @@ class QueryDB:
     def _create_analysis_tables(self):
         """Create tables for storing analysis history."""
         self.cur.executescript("""
-        --- Analysis history metadata
-        CREATE TABLE IF NOT EXISTS analysis_history (
-            id TEXT PRIMARY KEY,
-            user_id TEXT,
-            session_id TEXT, -- Optional: if done in sessions
-            analysis_type TEXT NOT NULL,    -- 'word_frequency'
-            scope_type TEXT NOT NULL,
-            verse_count INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (session_id) REFERENCES sessions(id)-- Analysis results (actual data)
-
-        CREATE TABLE IF NOT EXISTS analysis_results (
-            id TEXT PRIMARY KEY,
-            analysis_id TEXT NOT NULL,
-            result_type TEXT NOT NULL,  -- 'word_freq', 'bigram', 'trigram', 'vocab_stats'
-            result_data TEXT NOT NULL,  -- JSON: [["word", count], ...]
-            chart_path TEXT,  -- Path to exported visualization
-            FOREIGN KEY (analysis_id) REFERENCES analysis_history(id)
-        );
-        
-        -- Create indexes for faster queries
-        CREATE INDEX IF NOT EXISTS idx_analysis_user ON analysis_history(user_id);
-        CREATE INDEX IF NOT EXISTS idx_analysis_type ON analysis_history(analysis_type);
-        CREATE INDEX IF NOT EXISTS idx_analysis_session ON analysis_history(session_id);
-        CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(created_at);
-
-
-        );
-        --- Analysis results
-        CREATE TABLE IF NOT EXISTS analysis_results (
-            id TEXT PRIMARY KEY,
-            analysis_history_id TEXT NOT NULL,
-            result_type TEXT NOT NULL,
-            result_data TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (analysis_history_id) REFERENCES analysis_history(id)
-        );
+            -- Analysis history metadata
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                session_id TEXT,
+                analysis_type TEXT NOT NULL,
+                scope_type TEXT NOT NULL,
+                scope_details TEXT,
+                verse_count INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (session_id) REFERENCES sessions(id)
+            );
+            
+            -- Analysis results (actual data)
+            CREATE TABLE IF NOT EXISTS analysis_results (
+                id TEXT PRIMARY KEY,
+                analysis_id TEXT NOT NULL,
+                result_type TEXT NOT NULL,
+                result_data TEXT NOT NULL,
+                chart_path TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (analysis_id) REFERENCES analysis_history(id)
+            );
+            
+            -- Create indexes for faster queries
+            CREATE INDEX IF NOT EXISTS idx_analysis_user ON analysis_history(user_id);
+            CREATE INDEX IF NOT EXISTS idx_analysis_type ON analysis_history(analysis_type);
+            CREATE INDEX IF NOT EXISTS idx_analysis_session ON analysis_history(session_id);
+            CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(created_at);
+            CREATE INDEX IF NOT EXISTS idx_results_analysis ON analysis_results(analysis_id);
         """)
-
         self.conn.commit()
 
 
@@ -771,11 +764,6 @@ class QueryDB:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
-
-
-
-
-
 
 
 if __name__ == "__main__":
