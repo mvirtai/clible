@@ -62,13 +62,7 @@ class AnalysisTracker:
             verse_count: Number of verses analyzed
             chart_paths: Optional dict with 'word_freq' and 'vocab_info' paths
         """
-                # TODO: Implement this
-        # 1. Create analysis_id
-        # 2. Insert into analysis_history
-        # 3. Insert word_freq results into analysis_results
-        # 4. Insert vocab_stats results into analysis_results
-        # 5. Return analysis_id
-
+  
         # 1. Generate ID
         analysis_id = uuid.uuid4().hex[:8]
 

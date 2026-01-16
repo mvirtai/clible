@@ -57,3 +57,13 @@ SESSION_MENU = {
     ],
     "footer": "Return to main menu"
 }
+
+HISTORY_MENU = {
+    "title": "=== analysis history ===",
+    "options": [
+        "View all analyses",
+        "Filter by type",
+        "View specific analysis",
+    ],
+    "footer": "Return to analytics menu"
+}
