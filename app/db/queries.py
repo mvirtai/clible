@@ -86,6 +86,7 @@ class QueryDB:
             """
         )
         self._create_user_tables()
+        self._create_analysis_tables()
         self.conn.commit()
 
 
@@ -524,6 +525,44 @@ class QueryDB:
     #   ANALYTICS
     # ---------------------
 
+    def _create_analysis_tables(self):
+        """Create tables for storing analysis history."""
+        self.cur.executescript("""
+            -- Analysis history metadata
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                session_id TEXT,
+                analysis_type TEXT NOT NULL,
+                scope_type TEXT NOT NULL,
+                scope_details TEXT,
+                verse_count INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (session_id) REFERENCES sessions(id)
+            );
+            
+            -- Analysis results (actual data)
+            CREATE TABLE IF NOT EXISTS analysis_results (
+                id TEXT PRIMARY KEY,
+                analysis_id TEXT NOT NULL,
+                result_type TEXT NOT NULL,
+                result_data TEXT NOT NULL,
+                chart_path TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (analysis_id) REFERENCES analysis_history(id)
+            );
+            
+            -- Create indexes for faster queries
+            CREATE INDEX IF NOT EXISTS idx_analysis_user ON analysis_history(user_id);
+            CREATE INDEX IF NOT EXISTS idx_analysis_type ON analysis_history(analysis_type);
+            CREATE INDEX IF NOT EXISTS idx_analysis_session ON analysis_history(session_id);
+            CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(created_at);
+            CREATE INDEX IF NOT EXISTS idx_results_analysis ON analysis_results(analysis_id);
+        """)
+        self.conn.commit()
+
+
     def search_word(self, word: str) -> list[dict]:
         pattern = f"%{word.lower()}%"
 
@@ -531,7 +570,7 @@ class QueryDB:
             """
             SELECT
                 b.name as book,
-                v.chapter,
+                v.chapter,  
                 v.verse,
                 v.text
             FROM verses v
@@ -544,6 +583,7 @@ class QueryDB:
         
         return [dict(row) for row in self.cur.fetchall()]
 
+
     def get_total_verse_count(self) -> int:
         """
         Get the total count of all saved verses.
@@ -555,6 +595,7 @@ class QueryDB:
         row = self.cur.fetchone()
         return row["count"] if row else 0
 
+
     def get_unique_books(self) -> list[str]:
         """
         Get a list of all unique book names.
@@ -565,6 +606,7 @@ class QueryDB:
         self.cur.execute("SELECT DISTINCT name FROM books ORDER BY name")
         rows = self.cur.fetchall()
         return [row["name"] for row in rows]
+
 
     def get_unique_chapters(self) -> list[tuple[str, int]]:
         """
@@ -583,6 +625,7 @@ class QueryDB:
         )
         rows = self.cur.fetchall()
         return [(row["book_name"], row["chapter"]) for row in rows]
+
 
     def get_book_distribution(self) -> list[tuple[str, int]]:
         """
@@ -603,6 +646,7 @@ class QueryDB:
         rows = self.cur.fetchall()
         return [(row["book_name"], row["count"]) for row in rows]
 
+
     def get_chapter_distribution(self) -> list[tuple[str, int, int]]:
         """
         Get chapter distribution (book name, chapter, verse count).
@@ -621,6 +665,7 @@ class QueryDB:
         )
         rows = self.cur.fetchall()
         return [(row["book_name"], row["chapter"], row["count"]) for row in rows]
+
 
     def get_verses_by_book(self, book_name: str) -> list[dict]:
         """
@@ -719,11 +764,6 @@ class QueryDB:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
-
-
-
-
-
 
 
 if __name__ == "__main__":

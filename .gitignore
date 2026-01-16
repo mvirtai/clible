@@ -1,4 +1,6 @@
 SESSION_MANAGER_LOGIC.md
+docs/
+data/
 
 # Python-generated files
 __pycache__/
@@ -100,3 +102,6 @@ uv_cache/
 # Development roadmap
 development-roadmap.plan.md
 data/exports/
+
+# Generated visualization charts
+data/charts/

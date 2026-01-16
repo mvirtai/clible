@@ -148,20 +148,30 @@ class WordFrequencyAnalyzer:
         }
 
     
-    def show_word_frequency_analysis(self, verses: list[dict]) -> None:
-        """
-        Show the word frequency analysis results.
-        
-        Args:
-            verses: List of verse dictionaries, each containing a 'text' field.
-        """
+    def show_word_frequency_analysis(
+        self, 
+        verses: list[dict],
+        visualize: bool = False,
+        viz_display: str = "terminal"
+    ) -> None:
+        """Show word frequency analysis with optional visualization."""
         verses_text = self.get_verses_text(verses)
         if verses_text is None:
             return
+        
         top_words = self.analyze_top(verses, top_n=20)
         vocab_info = self.count_vocabulary_size(verses)
-        format_results(top_words, vocab_info)   
-    
+        
+        # Existing text output
+        format_results(top_words, vocab_info)
+        
+        # NEW: Optional visualization
+        if visualize:
+            from app.analytics.visualizations import AnalyticsVisualizer
+            viz = AnalyticsVisualizer()
+            viz.plot_word_frequency(top_words, display=viz_display)
+            viz.plot_vocabulary_stats(vocab_info, display=viz_display)
+
 
 if __name__ == "__main__":
     with QueryDB() as db:
