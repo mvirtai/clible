@@ -8,6 +8,8 @@ import uuid
 import json
 from loguru import logger
 
+from app.ui import console
+
 DB_PATH = Path(__file__).resolve().parent / "clible.db"
 
 
@@ -260,6 +262,17 @@ class QueryDB:
         return [dict(r) for r in rows]
 
     def add_query_to_session(self, session_id: str, query_id: str) -> None:
+        if query_id:
+            if session_id:
+                db.add_query_to_session(session_id, query_id)
+                logger.info(f"Result saved and linked to session {session_id}")
+                console.print(f"[green]Result saved and linked to session {session_id}[/green]")
+            else:
+                logger.info(f"Result saved (id={query_id}) - no active session to link")
+                console.print(f"[green]Result saved (id={query_id})[/green]")
+                console.print("[dim]Note: No active session - query not linked to session[/dim]")
+
+
         if not (session_id and query_id):
             return
         try:

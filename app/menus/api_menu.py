@@ -96,17 +96,40 @@ def handle_fetch_by_ref(mode: str) -> dict | None:
 
 
 def handle_save(data: dict):
+    """
+    Save fetched verse data to database and optionally link to active session.
+    
+    If user has an active session, the query will be linked to that session.
+    Query is always saved permanently, even if no session is active.
+    """
     choice = click.confirm("Do you want to save result the result? [y/N] ", default=True)
 
-    if choice:
-        try:
-            with QueryDB() as db:
-                saved_id = db.save_query(data)
-            logger.info("Result saved successfully (id=%s)", saved_id)
-        except Exception as e:
-            logger.error(f"Failed to save result: {e}")
-    else:
+    if not choice:
         logger.info("Result not saved")
+        return
+
+    try:
+        with QueryDB() as db:
+            from app.state import AppState
+            state = AppState()
+            session_id = state.current_session_id
+
+            # Save query permanently to queries table (returns query_id)
+            query_id = db.save_query(data)
+            
+            # Link query to active session if one exists
+            if session_id:
+                db.add_query_to_session(session_id, query_id)
+                logger.info(f"Result saved and linked to session (id={query_id})")
+                console.print(f"[green]Result saved and linked to session (id={query_id})[/green]")
+            else:
+                logger.info(f"Result saved (id={query_id}) - no active session")
+                console.print(f"[green]Result saved (id={query_id})[/green]")
+                console.print("[dim]Note: No active session - query not linked to session[/dim]")
+                    
+    except Exception as e:
+        logger.error(f"Failed to save result: {e}")
+        console.print(f"[red]Failed to save result: {e}[/red]")
 
 
 def handle_fetch_multiple_books():
