@@ -134,26 +134,71 @@ class TestHandleFetchByRef:
 class TestHandleSave:
     """Tests for handle_save function"""
 
-    def test_save_success(self, mocker: MockerFixture):
-        """Test that save succeeds when user chooses to save"""
+    def test_save_success_with_session(self, mocker: MockerFixture):
+        """Test that save succeeds and links to session when session is active"""
         mock_confirm = mocker.patch('app.menus.api_menu.click.confirm')
         mock_confirm.return_value = True
         
         mock_db = Mock()
-        mock_db.save_query = Mock()
+        mock_query_id = "abc12345"
+        mock_db.save_query = Mock(return_value=mock_query_id)
+        mock_db.add_query_to_session = Mock()
         
         mock_querydb = mocker.patch('app.menus.api_menu.QueryDB')
         mock_querydb.return_value.__enter__ = Mock(return_value=mock_db)
         mock_querydb.return_value.__exit__ = Mock(return_value=False)
         
+        # Mock AppState with active session (patch where it's imported)
+        mock_state = Mock()
+        mock_state.current_session_id = "session123"
+        mock_appstate = mocker.patch('app.state.AppState')
+        mock_appstate.return_value = mock_state
+        
         mock_logger = mocker.patch('app.menus.api_menu.logger')
+        mock_console = mocker.patch('app.menus.api_menu.console')
         
         test_data = {'reference': 'John 3:16', 'verses': []}
         handle_save(test_data)
         
         mock_confirm.assert_called_once_with("Do you want to save result the result? [y/N] ", default=True)
         mock_db.save_query.assert_called_once_with(test_data)
-        mock_logger.info.assert_called_once_with("Result saved successfully (id=%s)", mock_db.save_query.return_value)
+        mock_db.add_query_to_session.assert_called_once_with("session123", mock_query_id)
+        mock_logger.info.assert_called_once_with(f"Result saved and linked to session (id={mock_query_id})")
+        mock_console.print.assert_called()
+
+    def test_save_success_without_session(self, mocker: MockerFixture):
+        """Test that save succeeds even when no session is active"""
+        mock_confirm = mocker.patch('app.menus.api_menu.click.confirm')
+        mock_confirm.return_value = True
+        
+        mock_db = Mock()
+        mock_query_id = "abc12345"
+        mock_db.save_query = Mock(return_value=mock_query_id)
+        mock_db.add_query_to_session = Mock()
+        
+        mock_querydb = mocker.patch('app.menus.api_menu.QueryDB')
+        mock_querydb.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_querydb.return_value.__exit__ = Mock(return_value=False)
+        
+        # Mock AppState without active session (patch where it's imported)
+        mock_state = Mock()
+        mock_state.current_session_id = None
+        mock_appstate = mocker.patch('app.state.AppState')
+        mock_appstate.return_value = mock_state
+        
+        mock_logger = mocker.patch('app.menus.api_menu.logger')
+        mock_console = mocker.patch('app.menus.api_menu.console')
+        
+        test_data = {'reference': 'John 3:16', 'verses': []}
+        handle_save(test_data)
+        
+        mock_confirm.assert_called_once_with("Do you want to save result the result? [y/N] ", default=True)
+        mock_db.save_query.assert_called_once_with(test_data)
+        # Should NOT call add_query_to_session when no session
+        mock_db.add_query_to_session.assert_not_called()
+        mock_logger.info.assert_called_once_with(f"Result saved (id={mock_query_id}) - no active session")
+        # Should print both success message and note about no session
+        assert mock_console.print.call_count >= 2
 
     def test_save_exception(self, mocker: MockerFixture):
         """Test that exception is handled correctly during save"""
@@ -168,7 +213,14 @@ class TestHandleSave:
         mock_querydb.return_value.__enter__ = Mock(return_value=mock_db)
         mock_querydb.return_value.__exit__ = Mock(return_value=False)
         
+        # Mock AppState (patch where it's imported)
+        mock_state = Mock()
+        mock_state.current_session_id = None
+        mock_appstate = mocker.patch('app.state.AppState')
+        mock_appstate.return_value = mock_state
+        
         mock_logger = mocker.patch('app.menus.api_menu.logger')
+        mock_console = mocker.patch('app.menus.api_menu.console')
         
         test_data = {'reference': 'John 3:16', 'verses': []}
         handle_save(test_data)
@@ -176,6 +228,7 @@ class TestHandleSave:
         mock_db.save_query.assert_called_once_with(test_data)
         mock_logger.error.assert_called_once_with(f"Failed to save result: {test_exception}")
         mock_logger.info.assert_not_called()
+        mock_console.print.assert_called()
 
     def test_save_declined(self, mocker: MockerFixture):
         """Test that save is not performed when user declines"""
