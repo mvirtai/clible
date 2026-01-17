@@ -466,37 +466,34 @@ def run_analytic_menu():
                 
                 console.print("\n[dim]Enter query numbers or IDs separated by commas (e.g., 1,2,5 or abc123,def456)[/dim]")
                 user_input = input("\nYour selection: ").strip()
-                
                 if not user_input:
                     console.print("[yellow]Analysis cancelled.[/yellow]")
                     spacing_after_output()
                     input("Press any key to continue...")
                     continue
-                
-                # Parse selection
-                selected_ids = []
-                for item in user_input.split(','):
-                    item = item.strip()
-                    # Try as number first
-                    try:
-                        idx = int(item)
-                        if 1 <= idx <= len(all_saved_queries):
-                            selected_ids.append(all_saved_queries[idx - 1]['id'])
-                    except ValueError:
-                        # Try as ID
-                        if any(q['id'] == item for q in all_saved_queries):
-                            selected_ids.append(item)
-                
+
+               # After line 475, convert indices to query_ids
+                selected_ids = parse_selection_range(user_input, len(all_saved_queries))
+
                 if not selected_ids:
-                    console.print("[red]No valid queries selected.[/red]")
+                    console.print("[yellow]Analysis cancelled.[/yellow]")
                     spacing_after_output()
                     input("Press any key to continue...")
                     continue
-                
-                console.print(f"\n[green]Selected {len(selected_ids)} queries[/green]")
-                
-                # Get combined verses
-                verse_data = db.get_verses_from_multiple_queries(selected_ids)
+
+                # Convert indices to query_ids
+                query_ids = [all_saved_queries[idx - 1]['id'] for idx in selected_ids]
+
+                console.print(f"\n[green]Selected {len(query_ids)} queries[/green]")
+                for idx, query_id in enumerate(query_ids, start=1):
+                    query = next(q for q in all_saved_queries if q['id'] == query_id)
+                    console.print(f"[bold cyan][{idx}][/bold cyan] ID: {query_id} | {query['reference']} | {query['verse_count']} verses")
+                input("Press any key to continue...")
+
+                # Remove duplicate check (lines 504-508) since we already checked above
+
+                # Get combined verses - use query_ids, not selected_ids
+                verse_data = db.get_verses_from_multiple_queries(query_ids)
                 
                 if not verse_data:
                     console.print("[yellow]No verses found in selected queries.[/yellow]")
@@ -704,6 +701,33 @@ def run_analytic_menu():
             run_history_menu()
         elif choice == 0:
             return
+
+
+
+def parse_selection_range(input_string: str, max_value: int) -> list[int] | None:
+    """Parse a comma-separated string of numbers or ranges into a list of integers."""
+    result = []
+    for part in input_string.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        if '-' in part:
+            start, end = map(int, part.split('-'))
+            if start < 1 or end > max_value:
+                console.print(f"[red]Invalid range {part}. Must be between 1 and {max_value}[/red]")
+                return None
+            result.extend(range(start, end + 1))
+        else:
+            try:
+                value = int(part)
+                if value < 1 or value > max_value:
+                    console.print(f"[red]Invalid value {value}. Must be between 1 and {max_value}[/red]")
+                    return None
+                result.append(value)
+            except ValueError:
+                console.print(f"[red]Invalid value {part}. Must be a number[/red]")
+                return None
+    return result
 
 
 def run_history_menu():
