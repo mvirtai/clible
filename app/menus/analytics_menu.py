@@ -1,5 +1,5 @@
 from app.ui import console, spacing_before_menu, spacing_after_output
-from app.menus.menu_utils import prompt_menu_choice, select_from_list, parse_selection_range
+from app.menus.menu_utils import prompt_menu_choice, select_from_list, parse_selection_range, select_interactive
 from app.menus.menus import ANALYTICS_MENU
 from app.menus.history_menu import run_history_menu
 from app.utils import handle_search_word
@@ -371,8 +371,10 @@ def run_analytic_menu():
                 
                 input("Press any key to continue...")
 
+
+
         elif choice == 6:
-            # Analyze by book
+            # Analyze by book(s) - interactive multi-selection with arrow keys
             with QueryDB() as db:
                 books = db.get_unique_books()
                 
@@ -382,48 +384,41 @@ def run_analytic_menu():
                     input("Press any key to continue...")
                     continue
                 
-                console.print("\n[bold]Available books:[/bold]")
-                for idx, book in enumerate(books, start=1):
-                    console.print(f"[bold cyan][{idx}][/bold cyan] {book}")
-                
-                console.print("\n[dim]Enter book number or name[/dim]")
-                user_input = input("\nYour selection: ").strip()
-                
-                if not user_input:
+                # Use interactive menu with multi-select (SPACE to select, ENTER to confirm)
+                selected_books = select_interactive(
+                    books,
+                    title="📖 Select book(s) for analysis",
+                    multi_select=True
+                )
+
+                if not selected_books:
                     console.print("[yellow]Analysis cancelled.[/yellow]")
                     spacing_after_output()
                     input("Press any key to continue...")
                     continue
                 
-                # Try as number first
-                selected_book = None
-                try:
-                    idx = int(user_input)
-                    if 1 <= idx <= len(books):
-                        selected_book = books[idx - 1]
-                except ValueError:
-                    # Try as book name
-                    if user_input in books:
-                        selected_book = user_input
+                # Normalize to list (in case single selection returns string)
+                if isinstance(selected_books, str):
+                    selected_books = [selected_books]
                 
-                if not selected_book:
-                    console.print("[red]Invalid book selection.[/red]")
-                    spacing_after_output()
-                    input("Press any key to continue...")
-                    continue
+                # Display selected books
+                books_display = ", ".join(selected_books)
+                console.print(f"\n[bold cyan]Analyzing book(s): {books_display}[/bold cyan]")
                 
-                console.print(f"\n[bold cyan]Analyzing book: {selected_book}[/bold cyan]")
-                
-                # Get all verses for the book
-                verse_data = db.get_verses_by_book(selected_book)
+                # Get all verses for selected books
+                verse_data = []
+                for book in selected_books:
+                    book_verses = db.get_verses_by_book(book)
+                    if book_verses:
+                        verse_data.extend(book_verses)
                 
                 if not verse_data:
-                    console.print(f"[yellow]No verses found for {selected_book}.[/yellow]")
+                    console.print(f"[yellow]No verses found for selected book(s).[/yellow]")
                     spacing_after_output()
                     input("Press any key to continue...")
                     continue
                 
-                console.print(f"[green]Found {len(verse_data)} verses[/green]\n")
+                console.print(f"[green]Found {len(verse_data)} verses total[/green]\n")
                 
                 # Choose analysis type
                 console.print("[bold]Select analysis type:[/bold]")
@@ -470,8 +465,8 @@ def run_analytic_menu():
                         tracker.save_word_frequency_analysis(
                             word_freq=top_words,
                             vocab_info=vocab_info,
-                            scope_type="book",
-                            scope_details={"book": selected_book},
+                            scope_type="books",
+                            scope_details={"books": selected_books},
                             verse_count=len(verse_data)
                         )
                     
@@ -483,8 +478,8 @@ def run_analytic_menu():
                         tracker.save_phrase_analysis(
                             bigrams=bigrams,
                             trigrams=trigrams,
-                            scope_type="book",
-                            scope_details={"book": selected_book},
+                            scope_type="books",
+                            scope_details={"books": selected_books},
                             verse_count=len(verse_data)
                         )
                     
@@ -496,3 +491,5 @@ def run_analytic_menu():
             run_history_menu()
         elif choice == 0:
             return
+
+
