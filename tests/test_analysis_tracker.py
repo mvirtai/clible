@@ -607,6 +607,149 @@ class TestGetAnalysisHistory:
         assert history[0]["id"] == id3
         assert history[1]["id"] == id2
         assert history[2]["id"] == id1
+    
+    def test_get_history_filters_by_session_id(self, tracker_with_user, sample_word_freq, sample_vocab_info):
+        """Test filtering history by session_id."""
+        tracker, user_id, db_path = tracker_with_user
+
+        # Create two sessions
+        with QueryDB(db_path) as db:
+            session_1 = db.create_session(user_id, "Session 1", "John 1-3", is_temporary=False)
+            session_2 = db.create_session(user_id, "Session 2", "Romans 1-3", is_temporary=False)
+
+        # Create analyses in different sessions
+        tracker.session_id = session_1
+        id1 = tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="session",
+            scope_details={"session_id": session_1},
+            verse_count=25
+        )
+        id2 = tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="session",
+            scope_details={"session_id": session_1},
+            verse_count=30
+        )
+
+        tracker.session_id = session_2
+        id3 = tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="session",
+            scope_details={"session_id": session_2},
+            verse_count=35
+        )
+
+        # Filter by session_1
+        history = tracker.get_analysis_history(session_id=session_1)
+
+        assert len(history) == 2
+        assert all(h["session_id"] == session_1 for h in history)
+        assert id1 in [h["id"] for h in history]
+        assert id2 in [h["id"] for h in history]
+        assert id3 not in [h["id"] for h in history]
+    
+    def test_get_history_filters_by_session_id_with_other_filters(self, tracker_with_user, sample_word_freq, 
+                                                                   sample_vocab_info, sample_bigrams, sample_trigrams):
+        """Test that session_id filter works in combination with other filters."""
+        tracker, user_id, db_path = tracker_with_user
+
+        # Create session
+        with QueryDB(db_path) as db:
+            session_1 = db.create_session(user_id, "Session 1", "John 1-3", is_temporary=False)
+
+        tracker.session_id = session_1
+
+        # Create mixed analyses in session_1
+        tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="session",
+            scope_details={"session_id": session_1},
+            verse_count=25
+        )
+        tracker.save_phrase_analysis(
+            bigrams=sample_bigrams,
+            trigrams=sample_trigrams,
+            scope_type="session",
+            scope_details={"session_id": session_1},
+            verse_count=30
+        )
+        tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="session",
+            scope_details={"session_id": session_1},
+            verse_count=35
+        )
+
+        # Filter by session AND analysis_type
+        history = tracker.get_analysis_history(
+            session_id=session_1,
+            analysis_type="word_frequency"
+        )
+
+        assert len(history) == 2
+        assert all(h["session_id"] == session_1 for h in history)
+        assert all(h["analysis_type"] == "word_frequency" for h in history)
+    
+    def test_get_history_with_none_session_id_returns_all(self, tracker_with_user, sample_word_freq, sample_vocab_info):
+        """Test that passing None as session_id returns analyses from all sessions."""
+        tracker, user_id, db_path = tracker_with_user
+
+        # Create two sessions
+        with QueryDB(db_path) as db:
+            session_1 = db.create_session(user_id, "Session 1", "John 1-3", is_temporary=False)
+            session_2 = db.create_session(user_id, "Session 2", "Romans 1-3", is_temporary=False)
+
+        # Create analyses in different sessions
+        tracker.session_id = session_1
+        tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="session",
+            scope_details={"session_id": session_1},
+            verse_count=25
+        )
+
+        tracker.session_id = session_2
+        tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="session",
+            scope_details={"session_id": session_2},
+            verse_count=30
+        )
+
+        # Get all analyses (no session filter)
+        history_all = tracker.get_analysis_history(session_id=None)
+        assert len(history_all) == 2
+
+        # Get analyses from session_1 only
+        history_session1 = tracker.get_analysis_history(session_id=session_1)
+        assert len(history_session1) == 1
+        assert history_session1[0]["session_id"] == session_1
+    
+    def test_get_history_with_empty_session_returns_nothing(self, tracker_with_user, sample_word_freq, sample_vocab_info):
+        """Test that filtering by non-existent session_id returns empty list."""
+        tracker, user_id, db_path = tracker_with_user
+
+        # Create analysis without session
+        tracker.save_word_frequency_analysis(
+            word_freq=sample_word_freq,
+            vocab_info=sample_vocab_info,
+            scope_type="query",
+            scope_details={"query_id": "test"},
+            verse_count=25
+        )
+
+        # Filter by non-existent session
+        history = tracker.get_analysis_history(session_id="nonexistent_session")
+
+        assert len(history) == 0
 
 
 class TestGetAnalysisResults:

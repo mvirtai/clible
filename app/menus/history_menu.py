@@ -15,6 +15,7 @@ def run_history_menu():
     Allows users to:
     - View all saved analyses
     - Filter analyses by type
+    - Filter analyses by current session
     - View detailed results of specific analyses
     """
     state = AppState()
@@ -35,19 +36,34 @@ def run_history_menu():
         user = db.get_user_by_id(tracker.user_id)
         user_name = user["name"] if user else "Unknown"
 
+    # Track filter state (default: False - show all analyses)
+    filter_current_session = False
     
     while True:
         spacing_before_menu()
+        
+        # Show current filter status if active session exists
+        if state.has_active_session:
+            filter_status = "[green]ON[/green]" if filter_current_session else "[dim]OFF[/dim]"
+            console.print(f"[dim]Current session filter: {filter_status}[/dim]")
+        
         choice = prompt_menu_choice(HISTORY_MENU)
         
         if choice == 1:
-            # View all analyses
-            history = tracker.get_analysis_history(limit=20)
+            # View all analyses (with optional session filter)
+            session_id_filter = state.current_session_id if filter_current_session else None
+            
+            history = tracker.get_analysis_history(
+                limit=20,
+                session_id=session_id_filter
+            )
             
             if not history:
-                console.print("[yellow]No analysis history found.[/yellow]")
+                filter_msg = " for current session" if filter_current_session else ""
+                console.print(f"[yellow]No analysis history found{filter_msg}.[/yellow]")
             else:
-                console.print(f"\n[bold]Analysis History ({len(history)} records):[/bold]\n")
+                filter_info = " (current session only)" if filter_current_session else ""
+                console.print(f"\n[bold]Analysis History ({len(history)} records{filter_info}):[/bold]\n")
                 console.print(f"{'#':<4} {'User':<15} {'Type':<20} {'Scope':<14} {'Verses':<8} {'Created':<20}")
                 console.print("─" * 85)
                 
@@ -63,6 +79,7 @@ def run_history_menu():
             
             spacing_after_output()
             input("Press any key to continue...")
+            
         elif choice == 2:
             # Filter by analysis type
             console.print("\n[bold]Filter by type:[/bold]")
@@ -81,12 +98,21 @@ def run_history_menu():
                 input("Press any key to continue...")
                 continue
             
-            history = tracker.get_analysis_history(limit=20, analysis_type=analysis_type)
+            # Apply session filter if enabled
+            session_id_filter = state.current_session_id if filter_current_session else None
+            
+            history = tracker.get_analysis_history(
+                limit=20,
+                analysis_type=analysis_type,
+                session_id=session_id_filter
+            )
             
             if not history:
-                console.print(f"[yellow]No {analysis_type} analyses found.[/yellow]")
+                filter_msg = " for current session" if filter_current_session else ""
+                console.print(f"[yellow]No {analysis_type} analyses found{filter_msg}.[/yellow]")
             else:
-                console.print(f"\n[bold]{analysis_type.replace('_', ' ').title()} Analyses ({len(history)} records):[/bold]\n")
+                filter_info = " (current session only)" if filter_current_session else ""
+                console.print(f"\n[bold]{analysis_type.replace('_', ' ').title()} Analyses ({len(history)} records{filter_info}):[/bold]\n")
                 console.print(f"{'#':<4} {'Scope':<14} {'Verses':<8} {'Created':<20}")
                 console.print("─" * 50)
                 
@@ -100,12 +126,32 @@ def run_history_menu():
             
             spacing_after_output()
             input("Press any key to continue...")
+            
         elif choice == 3:
+            # Toggle current session filter (if active session exists)
+            if state.has_active_session:
+                filter_current_session = not filter_current_session
+                status = "enabled" if filter_current_session else "disabled"
+                console.print(f"\n[green]Current session filter {status}[/green]")
+                spacing_after_output()
+                input("Press any key to continue...")
+            else:
+                console.print("[yellow]No active session. Start or resume a session to use this filter.[/yellow]")
+                spacing_after_output()
+                input("Press any key to continue...")
+                
+        elif choice == 4:
             # View specific analysis by ID
-            history = tracker.get_analysis_history(limit=10)
+            session_id_filter = state.current_session_id if filter_current_session else None
+            
+            history = tracker.get_analysis_history(
+                limit=10,
+                session_id=session_id_filter
+            )
             
             if not history:
-                console.print("[yellow]No analysis history found.[/yellow]")
+                filter_msg = " for current session" if filter_current_session else ""
+                console.print(f"[yellow]No analysis history found{filter_msg}.[/yellow]")
                 spacing_after_output()
                 input("Press any key to continue...")
                 continue
@@ -178,4 +224,3 @@ def run_history_menu():
             input("Press any key to continue...")
         elif choice == 0:
             return
-

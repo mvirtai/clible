@@ -63,6 +63,7 @@ HISTORY_MENU = {
     "options": [
         "View all analyses",
         "Filter by type",
+        "Toggle current session filter",
         "View specific analysis",
     ],
     "footer": "Return to analytics menu"
