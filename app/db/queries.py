@@ -13,34 +13,30 @@ from app.ui import console
 DB_PATH = Path(__file__).resolve().parent / "clible.db"
 
 
-# --- Schema for the database: ---
+# ============================================================================
+#   DATABASE SCHEMA
+# ============================================================================
 #
-# Table: queries
-#   - id (TEXT, PRIMARY KEY)
-#   - reference (TEXT, NOT NULL)
-#   - created_at (TIMESTAMP, NOT NULL, DEFAULT CURRENT_TIMESTAMP)
+# Table dependency order (for creation):
+#   1. Core tables (no dependencies):
+#      - translations
+#      - books
+#      - users
 #
-# Table: books
-#   - id (TEXT, PRIMARY KEY)
-#   - name (TEXT, NOT NULL, UNIQUE)
+#   2. Query tables (depend on translations, books):
+#      - queries (depends on translations)
+#      - verses (depends on queries, books)
 #
-# Table: verses
-#   - id (TEXT, PRIMARY KEY)
-#   - query_id (TEXT, NOT NULL, REFERENCES queries(id))
-#   - book_id (TEXT, NOT NULL, REFERENCES books(id))
-#   - chapter (INTEGER, NOT NULL)
-#   - verse (INTEGER, NOT NULL)
-#   - text (TEXT, NOT NULL)
-#   - snippet (TEXT)
+#   3. User/Session tables (depend on users, queries):
+#      - sessions (depends on users)
+#      - session_queries (depends on sessions, queries)
+#      - session_queries_cache (no foreign keys, but related to sessions)
 #
-# Table: translations
-#   - id (TEXT, PRIMARY KEY)
-#   - abbr (TEXT, NOT NULL, UNIQUE)
-#   - name (TEXT, NOT NULL, UNIQUE)
-#   - note (TEXT)
+#   4. Analysis tables (depend on users, sessions):
+#      - analysis_history (depends on users, sessions)
+#      - analysis_results (depends on analysis_history)
 #
-#   FOREIGN KEY (query_id) REFERENCES queries(id)
-#   FOREIGN KEY (book_id) REFERENCES books(id)
+# ============================================================================
 
 
 class QueryDB:
@@ -48,12 +44,58 @@ class QueryDB:
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.cur = self.conn.cursor()
-        self._create_tables()
+        self._initialize_database()
 
-    def _create_tables(self):
+    def _initialize_database(self):
+        """Initialize database: enable foreign keys and create all tables."""
         self.cur.execute("PRAGMA foreign_keys = ON;")
-        self.cur.executescript(
-            """
+        self._create_all_tables()
+        self.conn.commit()
+
+    def _create_all_tables(self):
+        """
+        Create all database tables in correct dependency order.
+        
+        Tables are created in this order to respect foreign key constraints:
+        1. Core independent tables
+        2. Tables depending on core tables
+        3. Junction/relationship tables
+        4. Analysis tables
+        """
+        self._create_core_tables()
+        self._create_query_tables()
+        self._create_session_tables()
+        self._create_analysis_tables()
+
+    def _create_core_tables(self):
+        """Create core independent tables (no foreign key dependencies)."""
+        self.cur.executescript("""
+            -- Translation metadata
+            CREATE TABLE IF NOT EXISTS translations (
+                id TEXT PRIMARY KEY,
+                abbr TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL UNIQUE,
+                note TEXT NULL
+            );
+
+            -- Book names
+            CREATE TABLE IF NOT EXISTS books (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            );
+
+            -- User accounts
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+    def _create_query_tables(self):
+        """Create tables for storing queries and verses."""
+        self.cur.executescript("""
+            -- Query metadata
             CREATE TABLE IF NOT EXISTS queries (
                 id TEXT PRIMARY KEY,
                 reference TEXT NOT NULL,
@@ -62,11 +104,7 @@ class QueryDB:
                 FOREIGN KEY (translation_id) REFERENCES translations(id)
             );
 
-            CREATE TABLE IF NOT EXISTS books (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL UNIQUE
-            );
-
+            -- Individual verses
             CREATE TABLE IF NOT EXISTS verses (
                 id TEXT PRIMARY KEY,
                 query_id TEXT NOT NULL,
@@ -78,65 +116,115 @@ class QueryDB:
                 FOREIGN KEY (query_id) REFERENCES queries(id),
                 FOREIGN KEY (book_id) REFERENCES books(id)
             );
+        """)
 
-            CREATE TABLE IF NOT EXISTS translations (
+    def _create_session_tables(self):
+        """Create tables for user sessions and session-query relationships."""
+        self.cur.executescript("""
+            -- User sessions
+            CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY,
-                abbr TEXT NOT NULL UNIQUE,
-                name TEXT NOT NULL UNIQUE,
-                note TEXT NULL
+                user_id TEXT NOT NULL,
+                name TEXT,
+                scope TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                is_saved INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id)
             );
-            """
-        )
-        self._create_user_tables()
-        self._create_analysis_tables()
+
+            -- Junction table: links sessions to saved queries
+            CREATE TABLE IF NOT EXISTS session_queries (
+                session_id TEXT NOT NULL,
+                query_id TEXT NOT NULL,
+                PRIMARY KEY (session_id, query_id),
+                FOREIGN KEY (session_id) REFERENCES sessions(id),
+                FOREIGN KEY (query_id) REFERENCES queries(id)
+            );
+
+            -- Cache table: stores temporary session queries (no foreign keys)
+            CREATE TABLE IF NOT EXISTS session_queries_cache (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                reference TEXT NOT NULL,
+                verse_data TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+    def _create_analysis_tables(self):
+        """Create tables for storing analysis history and results."""
+        self.cur.executescript("""
+            -- Analysis history metadata
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                session_id TEXT,
+                user_name TEXT NOT NULL,
+                analysis_type TEXT NOT NULL,
+                scope_type TEXT NOT NULL,
+                scope_details TEXT,
+                verse_count INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (session_id) REFERENCES sessions(id)
+            );
+            
+            -- Analysis results (actual data)
+            CREATE TABLE IF NOT EXISTS analysis_results (
+                id TEXT PRIMARY KEY,
+                analysis_id TEXT NOT NULL,
+                result_type TEXT NOT NULL,
+                result_data TEXT NOT NULL,
+                chart_path TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (analysis_id) REFERENCES analysis_history(id)
+            );
+            
+            -- Indexes for faster queries
+            CREATE INDEX IF NOT EXISTS idx_analysis_user ON analysis_history(user_id);
+            CREATE INDEX IF NOT EXISTS idx_analysis_type ON analysis_history(analysis_type);
+            CREATE INDEX IF NOT EXISTS idx_analysis_session ON analysis_history(session_id);
+            CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(created_at);
+            CREATE INDEX IF NOT EXISTS idx_results_analysis ON analysis_results(analysis_id);
+        """)
+
+    # ============================================================================
+    #   DATABASE RESET
+    # ============================================================================
+
+    def _reset_database(self):
+        """
+        Reset entire database by dropping all tables.
+        
+        Tables are dropped in reverse dependency order:
+        - Child tables (with foreign keys) first
+        - Parent tables last
+        """
+        self.cur.executescript("""
+            -- Drop child tables first (those with foreign keys)
+            DROP TABLE IF EXISTS analysis_results;
+            DROP TABLE IF EXISTS session_queries;
+            DROP TABLE IF EXISTS session_queries_cache;
+            DROP TABLE IF EXISTS verses;
+            
+            -- Drop parent tables
+            DROP TABLE IF EXISTS analysis_history;
+            DROP TABLE IF EXISTS sessions;
+            DROP TABLE IF EXISTS queries;
+            DROP TABLE IF EXISTS books;
+            DROP TABLE IF EXISTS translations;
+            DROP TABLE IF EXISTS users;
+        """)
+        # Recreate tables after reset
+        self._create_all_tables()
         self.conn.commit()
 
-
-    def _create_user_tables(self):
-        self.cur.executescript(
-            """
-                CREATE TABLE IF NOT EXISTS users (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                );
-
-                CREATE TABLE IF NOT EXISTS sessions (
-                    id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    name TEXT,
-                    scope TEXT,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    is_saved INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                );
-
-                -- junction table
-                CREATE TABLE IF NOT EXISTS session_queries (
-                    session_id TEXT NOT NULL,
-                    query_id TEXT NOT NULL,
-                    PRIMARY KEY (session_id, query_id),
-                    FOREIGN KEY (session_id) REFERENCES sessions(id),
-                    FOREIGN KEY (query_id) REFERENCES queries(id)
-                );
-                -- for temporary sessions
-                CREATE TABLE IF NOT EXISTS session_queries_cache (
-                    id TEXT PRIMARY KEY,
-                    session_id TEXT NOT NULL,  -- temporary session identifier
-                    reference TEXT NOT NULL,
-                    verse_data TEXT, -- JSON serialized verse data
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                );
-            """
-        )
-        self.conn.commit()
-
-
-    # ---------------------
-    #   HELPERS
-    # ---------------------
+    # ============================================================================
+    #   HELPER METHODS
+    # ============================================================================
 
     def _ensure_book(self, book_name: str) -> str:
+        """Get or create a book by name. Returns book ID."""
         self.cur.execute("SELECT id FROM books WHERE name = ?", (book_name,))
         row = self.cur.fetchone()
 
@@ -147,13 +235,24 @@ class QueryDB:
         self.cur.execute("INSERT INTO books (id, name) VALUES (?, ?)", (book_id, book_name))
         self.conn.commit()
         return book_id
-    
 
-    #----------------------
-    #   USERS
-    #----------------------
+    def _serialize_verse_data(self, verse_data: dict) -> str:
+        """Serialize verse data to JSON string."""
+        return json.dumps(verse_data, ensure_ascii=False)
+
+    def _deserialize_verse_data(self, data_text: str) -> dict:
+        """Deserialize JSON string to verse data dictionary."""
+        try:
+            return json.loads(data_text)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    # ============================================================================
+    #   USER OPERATIONS
+    # ============================================================================
 
     def create_user(self, name: str) -> str | None:
+        """Create a new user. Returns user ID or None if failed."""
         user_id = str(uuid.uuid4())[:8]
         if name and user_id:
             self.cur.execute("INSERT INTO users (id, name) VALUES (?, ?)",
@@ -162,9 +261,9 @@ class QueryDB:
             self.conn.commit()
             return user_id
         return None
-    
 
     def get_user_by_name(self, user_name: str) -> dict | None:
+        """Get user by name. Creates user if doesn't exist."""
         if user_name:
             self.cur.execute("SELECT id, name, created_at FROM users WHERE name = ?", (user_name,))
             row = self.cur.fetchone()
@@ -176,8 +275,8 @@ class QueryDB:
                 return self.get_user_by_name(user_name)
         return None
 
-
     def get_user_by_id(self, user_id: str) -> dict | None:
+        """Get user by ID. Returns None if not found."""
         if user_id:
             self.cur.execute("SELECT id, name, created_at FROM users WHERE id = ?", (user_id,))
             row = self.cur.fetchone()
@@ -186,8 +285,8 @@ class QueryDB:
                 return dict(row)
             return None
 
-
     def list_users(self) -> list[dict]:
+        """List all users, ordered by creation date (newest first)."""
         self.cur.execute("""
         SELECT u.id, u.name, u.created_at 
         FROM users u 
@@ -196,7 +295,6 @@ class QueryDB:
         """)
         rows = self.cur.fetchall()
         return [dict(r) for r in rows]
-    
 
     def get_or_create_default_user(self, user_name: str = "default") -> str:
         """
@@ -219,11 +317,12 @@ class QueryDB:
                 logger.error(f"Failed to create user: {user_name}")
                 return None
 
-    # ---------------------
-    #   SESSION LOGIC
-    # ---------------------
+    # ============================================================================
+    #   SESSION OPERATIONS
+    # ============================================================================
 
     def create_session(self, user_id: str, name: str, scope: str, is_temporary: bool = False) -> str | None:
+        """Create a new session. Returns session ID or None if failed."""
         session_id = str(uuid.uuid4())[:8]
         if session_id and user_id:
             self.cur.execute(
@@ -233,7 +332,7 @@ class QueryDB:
                     user_id,
                     name,
                     scope,
-                    0 if is_temporary else 1,  # Fixed: is_saved=0 for temporary, is_saved=1 for saved
+                    0 if is_temporary else 1,
                 ),
             )
             self.conn.commit()
@@ -241,6 +340,7 @@ class QueryDB:
         return None
 
     def get_session(self, session_id: str) -> dict | None:
+        """Get session by ID. Returns None if not found."""
         if not session_id:
             return None
         self.cur.execute(
@@ -251,6 +351,7 @@ class QueryDB:
         return dict(row) if row else None
 
     def list_sessions(self, user_id: str | None = None) -> list[dict]:
+        """List sessions, optionally filtered by user_id."""
         sql = "SELECT id, user_id, name, scope, created_at, is_saved FROM sessions"
         params: tuple[str, ...] = ()
         if user_id:
@@ -262,38 +363,23 @@ class QueryDB:
         return [dict(r) for r in rows]
 
     def add_query_to_session(self, session_id: str, query_id: str) -> None:
-        if query_id:
-            if session_id:
-                db.add_query_to_session(session_id, query_id)
-                logger.info(f"Result saved and linked to session {session_id}")
-                console.print(f"[green]Result saved and linked to session {session_id}[/green]")
-            else:
-                logger.info(f"Result saved (id={query_id}) - no active session to link")
-                console.print(f"[green]Result saved (id={query_id})[/green]")
-                console.print("[dim]Note: No active session - query not linked to session[/dim]")
-
-
+        """Link a query to a session. Silently ignores if already linked."""
         if not (session_id and query_id):
             return
+        
         try:
             self.cur.execute(
                 "INSERT INTO session_queries (session_id, query_id) VALUES (?, ?)",
                 (session_id, query_id),
             )
             self.conn.commit()
+            logger.info(f"Result saved and linked to session {session_id}")
+            console.print(f"[green]Result saved and linked to session {session_id}[/green]")
         except sqlite3.IntegrityError:
             logger.debug("Query %s already linked to session %s", query_id, session_id)
 
-    def _serialize_verse_data(self, verse_data: dict) -> str:
-        return json.dumps(verse_data, ensure_ascii=False)
-
-    def _deserialize_verse_data(self, data_text: str) -> dict:
-        try:
-            return json.loads(data_text)
-        except (json.JSONDecodeError, TypeError):
-            return {}
-
     def save_query_to_session_cache(self, session_id: str, verse_data: dict) -> str | None:
+        """Save query data to session cache. Returns cache entry ID."""
         query_id = str(uuid.uuid4())[:8]
         reference = verse_data.get("reference", "").strip()
         if not session_id or not query_id:
@@ -307,6 +393,7 @@ class QueryDB:
         return query_id
 
     def get_cached_queries_for_session(self, session_id: str) -> list[dict]:
+        """Get all cached queries for a session."""
         if not session_id:
             return []
         self.cur.execute(
@@ -325,6 +412,7 @@ class QueryDB:
         ]
 
     def get_session_queries(self, session_id: str) -> list[dict]:
+        """Get all queries for a session (both saved and cached)."""
         results: list[dict] = []
         if not session_id:
             return results
@@ -345,15 +433,16 @@ class QueryDB:
         return results
 
     def save_session(self, session_id: str) -> None:
+        """Mark a session as saved."""
         if not session_id:
             return
         self.cur.execute(
             "UPDATE sessions SET is_saved = 1 WHERE id = ?", (session_id,)
         )
         self.conn.commit()
-    # ---------------------
 
     def delete_session(self, session_id: str) -> bool:
+        """Delete a session and all its related data."""
         if not session_id:
             return False
         self.cur.execute("DELETE FROM session_queries WHERE session_id = ?", (session_id,))
@@ -363,32 +452,31 @@ class QueryDB:
         return self.cur.rowcount > 0
 
     def clear_session_cache(self, session_id: str) -> bool:
+        """Clear cached queries for a session."""
         if not session_id:
             return False
         self.cur.execute("DELETE FROM session_queries_cache WHERE session_id = ?", (session_id,))
         self.conn.commit()
         return self.cur.rowcount > 0
 
-    # ---------------------
-    #   MAIN SAVE LOGIC
-    # ---------------------
+    # ============================================================================
+    #   QUERY OPERATIONS
+    # ============================================================================
 
     def save_query(self, verse_data: dict) -> str:
+        """Save a query with its verses to the database. Returns query ID."""
         reference = verse_data.get("reference", "").strip()
 
         # 1. Save query metadata
         query_id = str(uuid.uuid4())[:8]
         
-        # Refactor to save translation metadata with query
+        # Handle translation metadata
         translation_id = None
         translation_name = verse_data.get("translation_name")
         translation_abbr = verse_data.get("translation_id")
 
-        # translation_language is not provided in mock_data.json
-        translation_language = None
-
         if translation_name or translation_abbr:
-            # Check if translation already exists (ignore language field)
+            # Check if translation already exists
             self.cur.execute(
                 "SELECT id FROM translations WHERE name = ? AND abbr = ?",
                 (translation_name, translation_abbr)
@@ -412,7 +500,7 @@ class QueryDB:
         )
         self.conn.commit()
 
-        # 2. Extract verses
+        # 2. Extract and save verses
         verses = verse_data.get("verses", [])
  
         for v in verses:
@@ -439,11 +527,8 @@ class QueryDB:
         logger.info(f"Saved query: {reference}")
         return query_id
 
-    # ---------------------
-    #   RETRIEVAL
-    # ---------------------
-
     def show_all_saved_queries(self):
+        """List all saved queries with verse counts."""
         self.cur.execute(
             """
             SELECT q.id, q.reference, q.created_at, COUNT(v.id) as verse_count
@@ -455,9 +540,9 @@ class QueryDB:
         )
         rows = self.cur.fetchall()
         return [dict(row) for row in rows]
-    
 
     def get_single_saved_query(self, query_id: str) -> dict | None:
+        """Get a single query with all its verses and translation info."""
         # 1. Get query metadata with translation info
         self.cur.execute(
             """
@@ -520,63 +605,12 @@ class QueryDB:
             return query_data.get("verses", [])
         return []
 
-    # ---------------------
-    #   RESET DATABASE
-    # ---------------------
-
-    def _reset_database(self):
-        self.cur.executescript(
-            """
-            DROP TABLE IF EXISTS queries;
-            DROP TABLE IF EXISTS books;
-            DROP TABLE IF EXISTS verses;
-            DROP TABLE IF EXISTS translations;
-            """
-        )
-
-    # ---------------------
-    #   ANALYTICS
-    # ---------------------
-
-    def _create_analysis_tables(self):
-        """Create tables for storing analysis history."""
-        self.cur.executescript("""
-            -- Analysis history metadata
-            CREATE TABLE IF NOT EXISTS analysis_history (
-                id TEXT PRIMARY KEY,
-                user_id TEXT,
-                session_id TEXT,
-                analysis_type TEXT NOT NULL,
-                scope_type TEXT NOT NULL,
-                scope_details TEXT,
-                verse_count INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (session_id) REFERENCES sessions(id)
-            );
-            
-            -- Analysis results (actual data)
-            CREATE TABLE IF NOT EXISTS analysis_results (
-                id TEXT PRIMARY KEY,
-                analysis_id TEXT NOT NULL,
-                result_type TEXT NOT NULL,
-                result_data TEXT NOT NULL,
-                chart_path TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (analysis_id) REFERENCES analysis_history(id)
-            );
-            
-            -- Create indexes for faster queries
-            CREATE INDEX IF NOT EXISTS idx_analysis_user ON analysis_history(user_id);
-            CREATE INDEX IF NOT EXISTS idx_analysis_type ON analysis_history(analysis_type);
-            CREATE INDEX IF NOT EXISTS idx_analysis_session ON analysis_history(session_id);
-            CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(created_at);
-            CREATE INDEX IF NOT EXISTS idx_results_analysis ON analysis_results(analysis_id);
-        """)
-        self.conn.commit()
-
+    # ============================================================================
+    #   ANALYTICS OPERATIONS
+    # ============================================================================
 
     def search_word(self, word: str) -> list[dict]:
+        """Search for a word in all verses."""
         pattern = f"%{word.lower()}%"
 
         self.cur.execute(
@@ -596,38 +630,20 @@ class QueryDB:
         
         return [dict(row) for row in self.cur.fetchall()]
 
-
     def get_total_verse_count(self) -> int:
-        """
-        Get the total count of all saved verses.
-        
-        Returns:
-            Total number of verses in the database.
-        """
+        """Get the total count of all saved verses."""
         self.cur.execute("SELECT COUNT(*) as count FROM verses")
         row = self.cur.fetchone()
         return row["count"] if row else 0
 
-
     def get_unique_books(self) -> list[str]:
-        """
-        Get a list of all unique book names.
-        
-        Returns:
-            List of unique book names.
-        """
+        """Get a list of all unique book names."""
         self.cur.execute("SELECT DISTINCT name FROM books ORDER BY name")
         rows = self.cur.fetchall()
         return [row["name"] for row in rows]
 
-
     def get_unique_chapters(self) -> list[tuple[str, int]]:
-        """
-        Get a list of all unique (book_name, chapter) pairs.
-        
-        Returns:
-            List of tuples (book_name, chapter).
-        """
+        """Get a list of all unique (book_name, chapter) pairs."""
         self.cur.execute(
             """
             SELECT DISTINCT b.name as book_name, v.chapter
@@ -639,14 +655,8 @@ class QueryDB:
         rows = self.cur.fetchall()
         return [(row["book_name"], row["chapter"]) for row in rows]
 
-
     def get_book_distribution(self) -> list[tuple[str, int]]:
-        """
-        Get book distribution (book name and verse count).
-        
-        Returns:
-            List of tuples (book_name, count) sorted by count descending.
-        """
+        """Get book distribution (book name and verse count)."""
         self.cur.execute(
             """
             SELECT b.name as book_name, COUNT(v.id) as count
@@ -659,14 +669,8 @@ class QueryDB:
         rows = self.cur.fetchall()
         return [(row["book_name"], row["count"]) for row in rows]
 
-
     def get_chapter_distribution(self) -> list[tuple[str, int, int]]:
-        """
-        Get chapter distribution (book name, chapter, verse count).
-        
-        Returns:
-            List of tuples (book_name, chapter, count) sorted by count descending.
-        """
+        """Get chapter distribution (book name, chapter, verse count)."""
         self.cur.execute(
             """
             SELECT b.name as book_name, v.chapter, COUNT(v.id) as count
@@ -679,17 +683,8 @@ class QueryDB:
         rows = self.cur.fetchall()
         return [(row["book_name"], row["chapter"], row["count"]) for row in rows]
 
-
     def get_verses_by_book(self, book_name: str) -> list[dict]:
-        """
-        Get all verses for a specific book name.
-        
-        Args:
-            book_name: Name of the book (e.g., "John", "Genesis")
-        
-        Returns:
-            List of verse dictionaries with book_name, chapter, verse, text
-        """
+        """Get all verses for a specific book name."""
         self.cur.execute(
             """
             SELECT 
@@ -707,15 +702,7 @@ class QueryDB:
         return [dict(row) for row in self.cur.fetchall()]
     
     def get_all_verses_from_session(self, session_id: str) -> list[dict]:
-        """
-        Get all verses from all queries in a session (both saved and cached).
-        
-        Args:
-            session_id: ID of the session
-            
-        Returns:
-            List of verse dictionaries
-        """
+        """Get all verses from all queries in a session (both saved and cached)."""
         all_verses = []
         
         # Get verses from saved queries
@@ -742,15 +729,7 @@ class QueryDB:
         return all_verses
     
     def get_verses_from_multiple_queries(self, query_ids: list[str]) -> list[dict]:
-        """
-        Get all verses from multiple query IDs.
-        
-        Args:
-            query_ids: List of query IDs
-            
-        Returns:
-            List of verse dictionaries
-        """
+        """Get all verses from multiple query IDs."""
         if not query_ids:
             return []
         
@@ -771,6 +750,9 @@ class QueryDB:
         )
         return [dict(row) for row in self.cur.fetchall()]
 
+    # ============================================================================
+    #   CONTEXT MANAGER
+    # ============================================================================
 
     def __enter__(self):
         return self
@@ -780,6 +762,6 @@ class QueryDB:
 
 
 if __name__ == "__main__":
+    # Database reset script - use with caution!
     db = QueryDB()
-    db._reset_database()
-
+    
