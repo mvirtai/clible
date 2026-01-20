@@ -215,7 +215,8 @@ class AnalysisTracker:
         self,
         limit: int = 10,
         analysis_type: str = None,
-        scope_type: str = None
+        scope_type: str = None,
+        session_id: str = None
     ) -> list[dict]:
         """
         Get analysis history with optional filtering.
@@ -224,6 +225,7 @@ class AnalysisTracker:
             limit: Max number of results to return
             analysis_type: Filter by analysis type ('word_frequency', 'phrase_analysis')
             scope_type: Filter by scope type ('query', 'session', 'book', 'multi_query')
+            session_id: Filter by session ID (None = all sessions)
             
         Returns:
             List of analysis metadata dictionaries, ordered by most recent first
@@ -233,10 +235,15 @@ class AnalysisTracker:
             query = "SELECT * FROM analysis_history WHERE 1=1"
             params = []
             
+  
             # Filter by user if user_id is set
             if self.user_id:
                 query += " AND user_id = ?"
                 params.append(self.user_id)
+
+            if session_id:
+                query += " AND session_id = ?"
+                params.append(session_id)
             
             # Filter by analysis_type if provided
             if analysis_type:
