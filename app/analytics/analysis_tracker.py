@@ -69,10 +69,10 @@ class AnalysisTracker:
         with self._get_db() as db:
 
             # 2. Get user name if user_id is available
-            user_name = None
+            user_name = "Unknown"  # Default for NOT NULL constraint
             if self.user_id:
                 user = db.get_user_by_id(self.user_id)
-                user_name = user["name"] if user else None
+                user_name = user["name"] if user else "Unknown"
             
             # 3. Insert into analysis history
             db.cur.execute("""
@@ -155,10 +155,10 @@ class AnalysisTracker:
 
         with self._get_db() as db:
             # Get user name if user_id is available
-            user_name = None
+            user_name = "Unknown"  # Default for NOT NULL constraint
             if self.user_id:
                 user = db.get_user_by_id(self.user_id)
-                user_name = user["name"] if user else None
+                user_name = user["name"] if user else "Unknown"
 
             # Insert metadata into analysis_history
             db.cur.execute("""

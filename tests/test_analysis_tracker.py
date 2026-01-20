@@ -158,6 +158,15 @@ class TestSaveWordFrequencyAnalysis:
         assert history["scope_type"] == "query"
         assert history["verse_count"] == 25
         assert history["created_at"] is not None
+        
+        # Check user_name is stored (new feature)
+        # Get user name from database to verify
+        with QueryDB(db_path) as db:
+            user = db.get_user_by_id(user_id)
+            if user:
+                assert history["user_name"] == user["name"]
+            else:
+                assert history["user_name"] == "Unknown"
 
         # Check scope_details is valid JSON
         scope_details = json.loads(history["scope_details"])
@@ -376,6 +385,15 @@ class TestSavePhraseAnalysis:
         assert history["analysis_type"] == "phrase_analysis"
         assert history["scope_type"] == "query"
         assert history["verse_count"] == 30
+        
+        # Check user_name is stored (new feature)
+        # Get user name from database to verify
+        with QueryDB(db_path) as db:
+            user = db.get_user_by_id(user_id)
+            if user:
+                assert history["user_name"] == user["name"]
+            else:
+                assert history["user_name"] == "Unknown"
     
     def test_save_phrase_creates_two_result_records(self, tracker_with_user, sample_bigrams, sample_trigrams):
         """Test that two result records are created (bigram + trigram)."""
@@ -861,17 +879,19 @@ class TestEdgeCases:
             verse_count=25
         )
 
-        # Should still work, with NULL user_id
+        # Should still work, with NULL user_id but "Unknown" user_name
         assert analysis_id is not None
         
         with QueryDB(temp_db) as db:
             db.cur.execute(
-                "SELECT user_id FROM analysis_history WHERE id = ?",
+                "SELECT user_id, user_name FROM analysis_history WHERE id = ?",
                 (analysis_id,)
             )
             result = db.cur.fetchone()
         
         assert result["user_id"] is None
+        # user_name should be "Unknown" due to NOT NULL constraint
+        assert result["user_name"] == "Unknown"
     
     def test_save_with_large_dataset(self, tracker_with_user, sample_vocab_info):
         """Test saving analysis with very large word frequency list."""

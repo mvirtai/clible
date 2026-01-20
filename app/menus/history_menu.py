@@ -54,7 +54,7 @@ def run_history_menu():
                 for idx, item in enumerate(history, start=1):
                     console.print(
                         f"{idx:<4} "
-                        f"{item.get('user_name', 'N/Aa'):<15} "
+                        f"{item.get('user_name', 'N/A'):<15} "
                         f"{item['analysis_type']:<20} "
                         f"{item['scope_type']:<14} "
                         f"{item['verse_count']:<8} "
