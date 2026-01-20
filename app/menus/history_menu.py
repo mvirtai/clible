@@ -5,6 +5,7 @@ from app.menus.menu_utils import prompt_menu_choice
 from app.menus.menus import HISTORY_MENU
 from app.analytics.analysis_tracker import AnalysisTracker
 from app.state import AppState
+from app.db.queries import QueryDB
 
 
 def run_history_menu():
@@ -28,6 +29,12 @@ def run_history_menu():
         user_id=state.current_user_id,
         session_id=state.current_session_id
     )
+
+    # Get current user name
+    with QueryDB() as db:
+        user = db.get_user_by_id(tracker.user_id)
+        user_name = user["name"] if user else "Unknown"
+
     
     while True:
         spacing_before_menu()
@@ -41,12 +48,13 @@ def run_history_menu():
                 console.print("[yellow]No analysis history found.[/yellow]")
             else:
                 console.print(f"\n[bold]Analysis History ({len(history)} records):[/bold]\n")
-                console.print(f"{'#':<4} {'Type':<20} {'Scope':<14} {'Verses':<8} {'Created':<20}")
-                console.print("─" * 70)
+                console.print(f"{'#':<4} {'User':<15} {'Type':<20} {'Scope':<14} {'Verses':<8} {'Created':<20}")
+                console.print("─" * 85)
                 
                 for idx, item in enumerate(history, start=1):
                     console.print(
                         f"{idx:<4} "
+                        f"{item.get('user_name', 'N/A'):<15} "
                         f"{item['analysis_type']:<20} "
                         f"{item['scope_type']:<14} "
                         f"{item['verse_count']:<8} "

@@ -67,23 +67,31 @@ class AnalysisTracker:
         analysis_id = uuid.uuid4().hex[:8]
 
         with self._get_db() as db:
-            # 2. Insert into analysis_history
+
+            # 2. Get user name if user_id is available
+            user_name = "Unknown"  # Default for NOT NULL constraint
+            if self.user_id:
+                user = db.get_user_by_id(self.user_id)
+                user_name = user["name"] if user else "Unknown"
+            
+            # 3. Insert into analysis history
             db.cur.execute("""
                 INSERT INTO analysis_history (
-                    id, user_id, session_id, analysis_type,
+                    id, user_id, session_id, user_name, analysis_type,
                     scope_type, scope_details, verse_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 analysis_id,
                 self.user_id,
                 self.session_id,
+                user_name,
                 "word_frequency",
                 scope_type,
                 json.dumps(scope_details),
                 verse_count
             ))
 
-            # 3. Insert word_freq results
+            # 4. Insert word_freq results
             word_freq_id = uuid.uuid4().hex[:8]
             db.cur.execute("""
                 INSERT INTO analysis_results (
@@ -97,7 +105,7 @@ class AnalysisTracker:
                 chart_paths.get('word_freq') if chart_paths else None
             ))
 
-            # 4. Insert vocab_stats results
+            # 5. Insert vocab_stats results
             vocab_stats_id = uuid.uuid4().hex[:8]
             db.cur.execute("""
                 INSERT INTO analysis_results (
@@ -114,7 +122,7 @@ class AnalysisTracker:
             # Commit all changes
             db.conn.commit()
         
-        # 5. Log and return
+        # 6. Log and return
         logger.info(f"Saved word frequency analysis: {analysis_id}")
         return analysis_id
 
@@ -146,16 +154,23 @@ class AnalysisTracker:
         analysis_id = uuid.uuid4().hex[:8]
 
         with self._get_db() as db:
+            # Get user name if user_id is available
+            user_name = "Unknown"  # Default for NOT NULL constraint
+            if self.user_id:
+                user = db.get_user_by_id(self.user_id)
+                user_name = user["name"] if user else "Unknown"
+
             # Insert metadata into analysis_history
             db.cur.execute("""
                 INSERT INTO analysis_history (
-                    id, user_id, session_id, analysis_type,
+                    id, user_id, session_id, user_name, analysis_type,
                     scope_type, scope_details, verse_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 analysis_id,
                 self.user_id,
                 self.session_id,
+                user_name,
                 "phrase_analysis",
                 scope_type,
                 json.dumps(scope_details),
