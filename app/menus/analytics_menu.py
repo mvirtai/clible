@@ -1,4 +1,4 @@
-from app.ui import console, spacing_before_menu, spacing_after_output
+from app.ui import console, spacing_before_menu, spacing_after_output, render_book_list
 from app.menus.menu_utils import prompt_menu_choice, select_from_list, parse_selection_range, select_interactive
 from app.menus.menus import ANALYTICS_MENU
 from app.menus.history_menu import run_history_menu
@@ -7,8 +7,15 @@ from app.db.queries import QueryDB
 from app.analytics.word_frequency import WordFrequencyAnalyzer
 from app.analytics.phrase_analysis import PhraseAnalyzer
 from app.analytics.analysis_tracker import AnalysisTracker
+from app.analytics.translation_compare import (
+    fetch_verse_comparison,
+    render_side_by_side_comparison,
+    AVAILABLE_TRANSLATIONS
+)
 from app.state import AppState
 from app.session_manager import SessionManager
+from app.validations.click_params import BookParam, ChapterParam, VersesParam
+import click
 
 
 def prompt_visualization_choice() -> tuple[bool, str]:
@@ -46,6 +53,54 @@ def run_analytic_menu():
             results = handle_search_word()
             input("Press any key to continue...")
         elif choice == 2:
+            # Translation comparison
+            console.print("\n[bold cyan]Translation Comparison[/bold cyan]")
+            console.print("[dim]Compare the same verse(s) in two different translations[/dim]\n")
+            
+            # Show available books
+            render_book_list()
+            
+            # Get verse reference
+            book = click.prompt("Book", type=BookParam())
+            chapter = click.prompt("Chapter", type=ChapterParam())
+            verses_input = click.prompt("Verses (press Enter for entire chapter)", type=VersesParam(), default="", show_default=False)
+            verses = verses_input if verses_input else None
+            
+            # Get translation choices
+            console.print("\n[bold]Available translations:[/bold]")
+            for idx, trans in enumerate(AVAILABLE_TRANSLATIONS[:6], start=1):  # Show first 6
+                console.print(f"  [bold cyan][{idx}][/bold cyan] {trans.upper()}")
+            
+            trans1_choice = input("\nSelect first translation (number or name): ").strip().lower()
+            trans2_choice = input("Select second translation (number or name): ").strip().lower()
+            
+            # Parse translation choices
+            def parse_translation(choice: str) -> str:
+                try:
+                    idx = int(choice)
+                    if 1 <= idx <= len(AVAILABLE_TRANSLATIONS):
+                        return AVAILABLE_TRANSLATIONS[idx - 1]
+                except ValueError:
+                    # Try to match by name
+                    for trans in AVAILABLE_TRANSLATIONS:
+                        if trans.lower() == choice:
+                            return trans
+                return "web"  # Default fallback
+            
+            translation1 = parse_translation(trans1_choice) if trans1_choice else "web"
+            translation2 = parse_translation(trans2_choice) if trans2_choice else "kjv"
+            
+            # Fetch and display comparison
+            comparison_data = fetch_verse_comparison(book, chapter, verses, translation1, translation2)
+            
+            if comparison_data:
+                render_side_by_side_comparison(comparison_data)
+            else:
+                console.print("[red]Failed to fetch verse comparison. Please check your input and try again.[/red]")
+            
+            spacing_after_output()
+            input("Press any key to continue...")
+        elif choice == 3:
             # Word frequency analysis for single query
             with QueryDB() as db:
                 all_saved_queries = db.show_all_saved_queries()
@@ -108,7 +163,7 @@ def run_analytic_menu():
                     spacing_after_output()
                 
                 input("Press any key to continue...")
-        elif choice == 3:
+        elif choice == 4:
             with QueryDB() as db:
                 all_saved_queries = db.show_all_saved_queries()
                 
@@ -166,7 +221,7 @@ def run_analytic_menu():
                     spacing_after_output()
                 
                 input("Press any key to continue...")
-        elif choice == 4:
+        elif choice == 5:
             # Analyze current session
             session_manager = SessionManager()
             
@@ -253,7 +308,7 @@ def run_analytic_menu():
                 console.print("[green]✓ Analysis saved to history![/green]")
             
             input("Press any key to continue...")
-        elif choice == 5:
+        elif choice == 6:
             # Analyze multiple queries
             with QueryDB() as db:
                 all_saved_queries = db.show_all_saved_queries()
@@ -373,7 +428,7 @@ def run_analytic_menu():
 
 
 
-        elif choice == 6:
+        elif choice == 7:
             # Analyze by book(s) - interactive multi-selection with arrow keys
             with QueryDB() as db:
                 books = db.get_unique_books()
@@ -486,7 +541,7 @@ def run_analytic_menu():
                     console.print("[green]✓ Analysis saved to history![/green]")
                 
                 input("Press any key to continue...")
-        elif choice == 7:
+        elif choice == 8:
             # View analysis history
             run_history_menu()
         elif choice == 0:
