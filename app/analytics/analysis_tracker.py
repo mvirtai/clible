@@ -211,6 +211,75 @@ class AnalysisTracker:
         logger.info(f"Saved phrase analysis: {analysis_id}")
         return analysis_id
     
+    def save_translation_comparison(
+        self,
+        comparison_data: dict,
+        scope_type: str,
+        scope_details: dict,
+        verse_count: int
+    ) -> str:
+        """
+        Save translation comparison analysis to database.
+        
+        Args:
+            comparison_data: Dictionary containing translation comparison data with:
+                - "reference": Verse reference string
+                - "translation1": Dict with first translation data (verses, translation_name, translation_id)
+                - "translation2": Dict with second translation data (verses, translation_name, translation_id)
+            scope_type: 'translation' or other scope type
+            scope_details: Dict describing the scope (e.g., {"translation1": "web", "translation2": "kjv"})
+            verse_count: Number of verses compared
+            
+        Returns:
+            analysis_id: Unique ID for this analysis
+        """
+        # Generate unique analysis ID
+        analysis_id = uuid.uuid4().hex[:8]
+
+        with self._get_db() as db:
+            # Get user name if user_id is available
+            user_name = "Unknown"  # Default for NOT NULL constraint
+            if self.user_id:
+                user = db.get_user_by_id(self.user_id)
+                user_name = user["name"] if user else "Unknown"
+
+            # Insert metadata into analysis_history
+            db.cur.execute("""
+                INSERT INTO analysis_history (
+                    id, user_id, session_id, user_name, analysis_type,
+                    scope_type, scope_details, verse_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                analysis_id,
+                self.user_id,
+                self.session_id,
+                user_name,
+                "translation_comparison",
+                scope_type,
+                json.dumps(scope_details),
+                verse_count
+            ))
+            
+            # Insert translation comparison results
+            comparison_id = uuid.uuid4().hex[:8]
+            db.cur.execute("""
+                INSERT INTO analysis_results (
+                    id, analysis_id, result_type, result_data, chart_path
+                ) VALUES (?, ?, ?, ?, ?)
+            """, (
+                comparison_id,
+                analysis_id,
+                "translation_comparison",
+                json.dumps(comparison_data),
+                None  # No chart path for translation comparisons
+            ))
+            
+            # Commit all changes
+            db.conn.commit()
+        
+        logger.info(f"Saved translation comparison: {analysis_id}")
+        return analysis_id
+    
     def get_analysis_history(
         self,
         limit: int = 10,
@@ -326,84 +395,4 @@ class AnalysisTracker:
             
             return analysis
     
-    def compare_analyses(self, analysis_id1: str, analysis_id2: str) -> dict | None:
-        """
-        Compare two word frequency analyses to find similarities and differences.
-        
-        Args:
-            analysis_id1: ID of first analysis
-            analysis_id2: ID of second analysis
-            
-        Returns:
-            Dictionary containing:
-            - 'analysis_1': Metadata of first analysis
-            - 'analysis_2': Metadata of second analysis
-            - 'common_words': Words present in both (word, count1, count2)
-            - 'unique_to_first': Words only in first analysis
-            - 'unique_to_second': Words only in second analysis
-            - 'frequency_changes': Common words with count differences (word, count1, count2, diff)
-            Returns None if either analysis not found.
-        """
-        # Retrieve both analyses
-        analysis_1 = self.get_analysis_results(analysis_id1)
-        analysis_2 = self.get_analysis_results(analysis_id2)
-        
-        # Verify both exist
-        if not analysis_1 or not analysis_2:
-            return None
-        
-        # Get word frequency data and convert to dictionaries for easier comparison
-        # Note: word_freq is stored as list of [word, count] pairs
-        words_1_list = analysis_1["results"].get("word_freq", [])
-        words_2_list = analysis_2["results"].get("word_freq", [])
-        
-        # Convert lists to dictionaries: {"word": count}
-        words_1 = dict(words_1_list)
-        words_2 = dict(words_2_list)
-        
-        # Find common words (set intersection)
-        common_keys = set(words_1.keys()) & set(words_2.keys())
-        common_words = [(word, words_1[word], words_2[word]) for word in common_keys]
-        
-        # Find words unique to each analysis (set difference)
-        unique_1_keys = set(words_1.keys()) - set(words_2.keys())
-        unique_to_first = [(word, words_1[word]) for word in unique_1_keys]
-        
-        unique_2_keys = set(words_2.keys()) - set(words_1.keys())
-        unique_to_second = [(word, words_2[word]) for word in unique_2_keys]
-        
-        # Calculate frequency changes for common words
-        frequency_changes = []
-        for word in common_keys:
-            count1 = words_1[word]
-            count2 = words_2[word]
-            diff = count2 - count1
-            frequency_changes.append((word, count1, count2, diff))
-        
-        # Sort frequency changes by absolute difference (largest changes first)
-        frequency_changes.sort(key=lambda x: abs(x[3]), reverse=True)
-        
-        # Build comparison result
-        return {
-            "analysis_1": {
-                "id": analysis_1["id"],
-                "analysis_type": analysis_1["analysis_type"],
-                "scope_type": analysis_1["scope_type"],
-                "scope_details": analysis_1["scope_details"],
-                "verse_count": analysis_1["verse_count"],
-                "created_at": analysis_1["created_at"]
-            },
-            "analysis_2": {
-                "id": analysis_2["id"],
-                "analysis_type": analysis_2["analysis_type"],
-                "scope_type": analysis_2["scope_type"],
-                "scope_details": analysis_2["scope_details"],
-                "verse_count": analysis_2["verse_count"],
-                "created_at": analysis_2["created_at"]
-            },
-            "common_words": common_words,
-            "unique_to_first": unique_to_first,
-            "unique_to_second": unique_to_second,
-            "frequency_changes": frequency_changes
-        }
 

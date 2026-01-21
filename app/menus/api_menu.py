@@ -64,7 +64,7 @@ def handle_fetch_by_ref(mode: str) -> dict | None:
         
         book = click.prompt("Book", type=BookParam())
         chapter = click.prompt("Chapter", type=ChapterParam())
-        verses = click.prompt("Verses", type=VersesParam())
+        verses = click.prompt("Verses", type=VersesParam(allow_empty=False))
 
         data = fetch_by_reference(book, chapter, verses)
         word = 'verse(s)'

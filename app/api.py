@@ -7,6 +7,140 @@ mock_data_path = Path(__file__).resolve().parent.parent / "data" / "mock_data.js
 
 BASE_URL = "http://bible-api.com"
 
+
+def calculate_max_chapter(book: str, translation: str | None = None) -> int | None:
+    """
+    Calculate the maximum chapter number in a book by attempting to fetch chapters
+    and finding the highest valid chapter number.
+    
+    Uses a binary search approach: tries common chapter numbers first, then narrows down.
+    
+    Args:
+        book: Book name (e.g., "Romans")
+        translation: Translation identifier (default: "web")
+        
+    Returns:
+        Maximum chapter number found in the book, or None if unable to determine
+    """
+    translation = translation.lower() if translation else "web"
+    translation_sentence = "?translation=" + translation
+    
+    # First verify book exists by trying chapter 1
+    url = f"{BASE_URL}/{book}+1{translation_sentence}"
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code != 200:
+            logger.warning(f"Book {book} chapter 1 not found, cannot calculate max chapter")
+            return None
+    except requests.exceptions.RequestException:
+        logger.warning(f"Error checking {book} chapter 1, cannot calculate max chapter")
+        return None
+    
+    # Try common high chapter numbers first (most books have < 50 chapters)
+    # Check: 50, 30, 20, 10, then go up from there if needed
+    test_chapters = [50, 30, 20, 10]
+    max_found = 1
+    
+    for test_chapter in test_chapters:
+        url = f"{BASE_URL}/{book}+{test_chapter}{translation_sentence}"
+        try:
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                verses = data.get("verses", [])
+                if verses:
+                    max_found = test_chapter
+                    break
+        except requests.exceptions.RequestException:
+            continue
+    
+    # If we found a chapter >= 10, search upward from there
+    if max_found >= 10:
+        # Search upward from max_found to find the actual max
+        for chapter_num in range(max_found + 1, 151):
+            url = f"{BASE_URL}/{book}+{chapter_num}{translation_sentence}"
+            try:
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    data = response.json()
+                    verses = data.get("verses", [])
+                    if verses:
+                        max_found = chapter_num
+                    else:
+                        break
+                else:
+                    break
+            except requests.exceptions.RequestException:
+                break
+    else:
+        # If max_found < 10, search upward from 1
+        for chapter_num in range(2, 11):
+            url = f"{BASE_URL}/{book}+{chapter_num}{translation_sentence}"
+            try:
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    data = response.json()
+                    verses = data.get("verses", [])
+                    if verses:
+                        max_found = chapter_num
+                    else:
+                        break
+                else:
+                    break
+            except requests.exceptions.RequestException:
+                break
+    
+    logger.info(f"Calculated max chapter for {book}: {max_found}")
+    return max_found
+
+
+def calculate_max_verse(book: str, chapter: str, translation: str | None = None) -> int | None:
+    """
+    Calculate the maximum verse number in a chapter by fetching the chapter and
+    finding the highest verse number in the response.
+    
+    Args:
+        book: Book name (e.g., "John")
+        chapter: Chapter number (e.g., "3")
+        translation: Translation identifier (default: "web")
+        
+    Returns:
+        Maximum verse number found in the chapter, or None if unable to determine
+    """
+    translation = translation.lower() if translation else "web"
+    translation_sentence = "?translation=" + translation
+    url = f"{BASE_URL}/{book}+{chapter}{translation_sentence}"
+    
+    try:
+        logger.debug(f"Fetching chapter to calculate max verse: {url}")
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        verses = data.get("verses", [])
+        if not verses:
+            logger.warning(f"No verses found in chapter {book} {chapter}")
+            return None
+        
+        # Find the maximum verse number
+        verse_numbers = [verse.get("verse", 0) for verse in verses if verse.get("verse")]
+        if not verse_numbers:
+            logger.warning(f"No valid verse numbers found in chapter {book} {chapter}")
+            return None
+        
+        max_verse = max(verse_numbers)
+        if max_verse <= 0:
+            logger.warning(f"Invalid max verse calculated: {max_verse} for {book} {chapter}")
+            return None
+        
+        logger.info(f"Calculated max verse for {book} {chapter}: {max_verse}")
+        return max_verse
+        
+    except (requests.exceptions.RequestException, json.JSONDecodeError, ValueError) as e:
+        logger.error(f"Failed to calculate max verse for {book} {chapter}: {e}")
+        return None
+
+
 def fetch_book_list() -> list[str]:
     """Fetch a list of books from bible-api.com API"""
     url = f"{BASE_URL}/data/web"
@@ -52,6 +186,33 @@ def fetch_by_reference(
     
     translation = translation.lower() if translation else "web"
     translation_sentence = "?translation=" + translation
+    
+    # Handle chapter='all' - calculate max chapter for the book
+    if chapter is not None and chapter.strip().lower() == "all":
+        logger.info(f"'all' chapter specified, calculating max chapter for {book}")
+        max_chapter = calculate_max_chapter(book, translation)
+        if max_chapter:
+            chapter = str(max_chapter)
+            logger.info(f"Using calculated max chapter: {chapter}")
+        else:
+            logger.error(f"Could not calculate max chapter for {book}")
+            return None
+    
+    # Handle empty string or 'all' for verses - calculate max verse and fetch all verses
+    if verses is not None and verses.strip().lower() in ("", "all"):
+        if not chapter:
+            logger.error("Cannot calculate max verse without a chapter")
+            return None
+        logger.info(f"Empty or 'all' verses specified, calculating max verse for {book} {chapter}")
+        max_verse = calculate_max_verse(book, chapter, translation)
+        if max_verse:
+            verses = f"1-{max_verse}"
+            logger.info(f"Using calculated verse range: {verses}")
+        else:
+            # Fallback to fetching entire chapter if max verse calculation fails
+            logger.warning(f"Could not calculate max verse, fetching entire chapter instead")
+            verses = None
+    
     # Fetch a random verse
     if random:
         url = f"{BASE_URL}/data/random{translation_sentence}"
