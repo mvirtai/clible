@@ -25,6 +25,8 @@ ANALYTICS_MENU = {
     "title": "=== analytic tools ===",
     "options": [
         "Search word",
+        "Translation comparison",
+        "--------------------------------",
         "Word frequency analysis",
         "Phrase analysis",
         "Analyze current session",

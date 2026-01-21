@@ -31,6 +31,7 @@ def fetch_by_reference(
     chapter: str | None = None,
     verses: str | None = None,
     random: bool = False, 
+    translation: str | None = None,
     use_mock: bool = False) -> dict:
     """Fetch a  verse, verses or a chapter from bible-api.com API"""
 
@@ -49,17 +50,19 @@ def fetch_by_reference(
             return None
         return data
     
+    translation = translation.lower() if translation else "web"
+    translation_sentence = "?translation=" + translation
     # Fetch a random verse
     if random:
-        url = f"{BASE_URL}/data/web/random"
+        url = f"{BASE_URL}/data/random{translation_sentence}"
         logger.info(f"Fetching a random verse from path: {url}")
     # Fetch a single chapter
     elif not verses:
-        url = f"{BASE_URL}/{book}+{chapter}"
+        url = f"{BASE_URL}/{book}+{chapter}{translation_sentence}"
         logger.info(f"Fetching a single chapter from path: {url}")
     # Fetch a single verse or multiple verses
     else:
-        url = f"{BASE_URL}/{book}+{chapter}:{verses}"
+        url = f"{BASE_URL}/{book}+{chapter}:{verses}{translation_sentence}"
         logger.info(f"Fetching a single verse or multiple verses from path: {url}")
 
     # API call
