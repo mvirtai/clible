@@ -6,11 +6,14 @@ silent: true
 
 vars:
   DOCKER_USER: '{{env "DOCKER_USER"}}'
+  REGISTRY: '{{default "" (env "DOCKER_REGISTRY")}}'
   COMMIT:
     sh: git rev-parse --short HEAD
   IMAGE_TAG: "{{.COMMIT}}"
   PROMO_TAG: latest
   IMAGE: "{{.DOCKER_USER}}/clible"
+  # Full image name with or without registry
+  FULL_IMAGE: '{{if .REGISTRY}}{{.REGISTRY}}/{{.IMAGE}}{{else}}{{.IMAGE}}{{end}}'
 
 tasks:
   default:
@@ -19,25 +22,25 @@ tasks:
   show-image:
     desc: Print fully-qualified image references
     cmds:
-      - echo "{{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}}"
-      - echo "{{.REGISTRY}}/{{.IMAGE}}:{{.PROMO_TAG}}"
+      - echo "{{.FULL_IMAGE}}:{{.IMAGE_TAG}}"
+      - echo "{{.FULL_IMAGE}}:{{.PROMO_TAG}}"
 
   build:
     desc: "Build Docker image"
     deps: []
     cmds:
-      - docker build -t {{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}} .
+      - docker build -t {{.FULL_IMAGE}}:{{.IMAGE_TAG}} .
 
   tag:
     desc: Re-tag existing image to latest tag
     deps: [build]
     cmds:
-      - docker tag {{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}} {{.REGISTRY}}/{{.IMAGE}}:{{.PROMO_TAG}}
-      - echo "Tagged {{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}} -> {{.PROMO_TAG}}"
+      - docker tag {{.FULL_IMAGE}}:{{.IMAGE_TAG}} {{.FULL_IMAGE}}:{{.PROMO_TAG}}
+      - echo "Tagged {{.FULL_IMAGE}}:{{.IMAGE_TAG}} -> {{.PROMO_TAG}}"
 
   push:
     desc: Push both image tag and latest tag
     deps: [tag]
     cmds:
-      - docker push {{.REGISTRY}}/{{.IMAGE}}:{{.IMAGE_TAG}}
-      - docker push {{.REGISTRY}}/{{.IMAGE}}:{{.PROMO_TAG}}
+      - docker push {{.FULL_IMAGE}}:{{.IMAGE_TAG}}
+      - docker push {{.FULL_IMAGE}}:{{.PROMO_TAG}}
