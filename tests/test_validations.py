@@ -48,28 +48,45 @@ class TestValidateChapter:
         ("1", True),
         ("150", True),
         ("75", True),
-        ("  42  ", True), 
+        ("  42  ", True),
+        ("all", True),
+        ("ALL", True),
+        ("  all  ", True),
     ])
     def test_valid_chapters(self, chapter_input, expected_valid):
         """Testaa että validit luvut hyväksytään"""
         is_valid, payload = validate_chapter(chapter_input)
         assert is_valid == expected_valid
         if expected_valid:
-            assert payload == chapter_input.strip()
+            if chapter_input.strip().lower() == "all":
+                assert payload == "all"
+            else:
+                assert payload == chapter_input.strip()
     
     @pytest.mark.parametrize("invalid_chapter,expected_error", [
-        ("0", f"Chapter is either less than {CHAPTERS_MIN} or more than {CHAPTER_MAX}"),
-        ("151", f"Chapter is either less than {CHAPTERS_MIN} or more than {CHAPTER_MAX}"),
-        ("-1", f"Chapter is either less than {CHAPTERS_MIN} or more than {CHAPTER_MAX}"),
-        ("abc", "Chapter is not numeric value"),
-        ("12.5", "Chapter is not numeric value"),
-        ("", "Chapter is not numeric value"),
+        ("0", f"Chapter must be between {CHAPTERS_MIN} and {CHAPTER_MAX}"),
+        ("151", f"Chapter must be between {CHAPTERS_MIN} and {CHAPTER_MAX}"),
+        ("-1", "Chapter must be a numeric value"),
+        ("abc", "Chapter must be a numeric value"),
+        ("12.5", "Chapter must be a numeric value"),
+        ("", "Chapter cannot be empty"),
     ])
     def test_invalid_chapters(self, invalid_chapter, expected_error):
         """Testaa että virheelliset luvut hylätään oikealla virheilmoituksella"""
         is_valid, error_msg = validate_chapter(invalid_chapter)
         assert is_valid is False
         assert expected_error in error_msg
+    
+    def test_chapter_all_keyword(self):
+        """Test that 'all' keyword is accepted when allow_all=True"""
+        is_valid, payload = validate_chapter("all", allow_all=True)
+        assert is_valid is True
+        assert payload == "all"
+        
+        # Test that 'all' is rejected when allow_all=False
+        is_valid, payload = validate_chapter("all", allow_all=False)
+        assert is_valid is False
+        assert "cannot be 'all'" in payload
 
 
 class TestValidateVerses:
@@ -96,25 +113,25 @@ class TestValidateVerses:
     
     @pytest.mark.parametrize("invalid_verses,expected_error", [
         # Yksittäiset virheelliset
-        ("0", f"Verse must be in range {VERSES_MIN} - {VERSES_MAX}"),
-        ("176", f"Verse must be in range {VERSES_MIN} - {VERSES_MAX}"),
+        ("0", f"Verse must be between {VERSES_MIN} and {VERSES_MAX}"),
+        ("176", f"Verse must be between {VERSES_MIN} and {VERSES_MAX}"),
         ("abc", "Verse must be a number"),
         
         # Range-virheet
-        ("11-1", "Start verse must be less than end verse"),  
-        ("1-176", f"Verses must be in range {VERSES_MIN}-{VERSES_MAX}"),
-        ("0-5", f"Verses must be in range {VERSES_MIN}-{VERSES_MAX}"),
+        ("11-1", "Start verse must be less than or equal to end verse"),  
+        ("1-176", f"End verse must be between {VERSES_MIN} and {VERSES_MAX}"),
+        ("0-5", f"Start verse must be between {VERSES_MIN} and {VERSES_MAX}"),
         ("1-abc", "Verse numbers must be integers"),
         ("abc-5", "Verse numbers must be integers"),
         
         # Monimutkaiset virheet
-        ("1-3,0", f"Verse must be in range {VERSES_MIN} - {VERSES_MAX}"), 
-        ("1-3,11-1", "Start verse must be less than end verse"), 
+        ("1-3,0", f"Verse must be between {VERSES_MIN} and {VERSES_MAX}"), 
+        ("1-3,11-1", "Start verse must be less than or equal to end verse"), 
         
         # Muoto-virheet
-        ("1-2-3", "Invalid verse range format, use 'start-end'"),
-        ("-", "Invalid verse range format, use 'start-end'"),
-        ("", "Verse must be a number"),
+        ("1-2-3", "Invalid verse range format"),
+        ("-", "Invalid verse range format"),
+        ("", "Verse cannot be empty"),
     ])
     def test_invalid_verses(self, invalid_verses, expected_error):
         """Testaa että virheelliset jaet hylätään oikealla virheilmoituksella"""

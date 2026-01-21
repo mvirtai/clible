@@ -10,6 +10,8 @@ Currently supports comparison of two translations at a time.
 from rich.table import Table
 from rich.panel import Panel
 from loguru import logger
+import re
+from difflib import SequenceMatcher
 
 from app.api import fetch_by_reference
 from app.ui import console, spacing_between_sections
@@ -185,3 +187,102 @@ def render_side_by_side_comparison(comparison_data: dict) -> None:
     
     console.print(table)
     spacing_between_sections()
+    
+    # Calculate and display statistics
+    stats = calculate_translation_differences(comparison_data)
+    if stats:
+        # Display similarity statistics
+        console.print("[bold cyan]Translation Statistics:[/bold cyan]")
+        console.print(f"  Overall Similarity: [yellow]{stats['similarity_ratio']:.1%}[/yellow]")
+        console.print(f"  Word Count ({trans1_name}): [green]{stats['word_count_1']}[/green]")
+        console.print(f"  Word Count ({trans2_name}): [blue]{stats['word_count_2']}[/blue]")
+        console.print(f"  Common Vocabulary: [magenta]{stats['common_words_count']}[/magenta] words")
+        console.print(f"  Unique to {trans1_name}: [green]{stats['unique_count_1']}[/green] words")
+        console.print(f"  Unique to {trans2_name}: [blue]{stats['unique_count_2']}[/blue] words")
+        
+        # Show some unique words if available
+        if stats.get('unique_words_1'):
+            unique_sample_1 = ', '.join(stats['unique_words_1'][:10])
+            console.print(f"  Sample unique words ({trans1_name}): [dim]{unique_sample_1}[/dim]")
+        if stats.get('unique_words_2'):
+            unique_sample_2 = ', '.join(stats['unique_words_2'][:10])
+            console.print(f"  Sample unique words ({trans2_name}): [dim]{unique_sample_2}[/dim]")
+        
+        spacing_between_sections()
+
+
+def calculate_translation_differences(comparison_data: dict) -> dict:
+    """
+    Calculate statistical differences between two translations.
+    
+    Analyzes word-level differences, similarity ratios, and unique vocabulary
+    between two translations of the same verses.
+    
+    Args:
+        comparison_data: Dictionary returned by fetch_verse_comparison containing:
+            - "reference": Verse reference string
+            - "translation1": Dict with first translation data
+            - "translation2": Dict with second translation data
+            
+    Returns:
+        Dictionary containing:
+            - "similarity_ratio": Overall text similarity (0.0 to 1.0)
+            - "word_count_1": Total word count in translation 1
+            - "word_count_2": Total word count in translation 2
+            - "unique_words_1": Words only in translation 1
+            - "unique_words_2": Words only in translation 2
+            - "common_words": Words in both translations
+            - "verse_similarities": List of similarity ratios per verse
+    """
+    if not comparison_data:
+        return {}
+    
+    trans1_verses = comparison_data.get("translation1", {}).get("verses", [])
+    trans2_verses = comparison_data.get("translation2", {}).get("verses", [])
+    
+    if not trans1_verses or not trans2_verses:
+        return {}
+    
+    # Concatenate all verse texts
+    text1 = " ".join(v.get("text", "").strip() for v in trans1_verses)
+    text2 = " ".join(v.get("text", "").strip() for v in trans2_verses)
+    
+    # Calculate overall similarity
+    similarity_ratio = SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+    
+    # Tokenize into words (simple approach - includes alphanumeric)
+    word_pattern = re.compile(r'\b[a-z0-9\']+\b', re.IGNORECASE)
+    words1 = set(word.lower() for word in word_pattern.findall(text1))
+    words2 = set(word.lower() for word in word_pattern.findall(text2))
+    
+    # Find unique and common words
+    unique_words_1 = words1 - words2
+    unique_words_2 = words2 - words1
+    common_words = words1 & words2
+    
+    # Count total words (including duplicates)
+    all_words1 = word_pattern.findall(text1)
+    all_words2 = word_pattern.findall(text2)
+    
+    # Calculate per-verse similarities
+    verse_similarities = []
+    for i in range(min(len(trans1_verses), len(trans2_verses))):
+        v1_text = trans1_verses[i].get("text", "").strip()
+        v2_text = trans2_verses[i].get("text", "").strip()
+        verse_sim = SequenceMatcher(None, v1_text.lower(), v2_text.lower()).ratio()
+        verse_similarities.append({
+            "verse": trans1_verses[i].get("verse"),
+            "similarity": verse_sim
+        })
+    
+    return {
+        "similarity_ratio": similarity_ratio,
+        "word_count_1": len(all_words1),
+        "word_count_2": len(all_words2),
+        "unique_words_1": sorted(list(unique_words_1))[:20],  # Top 20 for display
+        "unique_words_2": sorted(list(unique_words_2))[:20],  # Top 20 for display
+        "common_words_count": len(common_words),
+        "unique_count_1": len(unique_words_1),
+        "unique_count_2": len(unique_words_2),
+        "verse_similarities": verse_similarities
+    }

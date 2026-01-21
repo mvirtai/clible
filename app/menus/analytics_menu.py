@@ -10,6 +10,7 @@ from app.analytics.analysis_tracker import AnalysisTracker
 from app.analytics.translation_compare import (
     fetch_verse_comparison,
     render_side_by_side_comparison,
+    calculate_translation_differences,
     AVAILABLE_TRANSLATIONS
 )
 from app.state import AppState
@@ -63,8 +64,9 @@ def run_analytic_menu():
             # Get verse reference
             book = click.prompt("Book", type=BookParam())
             chapter = click.prompt("Chapter", type=ChapterParam())
-            verses_input = click.prompt("Verses (press Enter for entire chapter)", type=VersesParam(), default="", show_default=False)
-            verses = verses_input if verses_input else None
+            verses_input = click.prompt("Verses (press Enter or type 'all' for entire chapter)", type=VersesParam(), default="", show_default=False)
+            # Pass empty string or 'all' to trigger max verse calculation logic
+            verses = verses_input if verses_input else ""
             
             # Get translation choices
             console.print("\n[bold]Available translations:[/bold]")
@@ -99,6 +101,32 @@ def run_analytic_menu():
                 console.print("[red]Failed to fetch verse comparison. Please check your input and try again.[/red]")
             
             spacing_after_output()
+            state = AppState()
+            save_choice = input("\nSave this comparison to history? (y/n): ").strip().lower()
+            if save_choice == 'y':
+                # Create an AnalysisTracker instance with the current user and session
+                tracker = AnalysisTracker(
+                    user_id=state.current_user_id,
+                    session_id=state.current_session_id
+                )
+                # Save the translation comparison data for history purposes
+                # Calculate verse count and statistics from comparison data
+                trans1_verses = comparison_data.get("translation1", {}).get("verses", [])
+                verse_count = len(trans1_verses) if trans1_verses else 0
+                stats = calculate_translation_differences(comparison_data)
+                tracker.save_translation_comparison(
+                    comparison_data=comparison_data,
+                    scope_type="translation",
+                    scope_details={
+                        "translation1": translation1,
+                        "translation2": translation2,
+                        "statistics": stats
+                    },
+                    verse_count=verse_count
+                )
+                console.print("[green]✓ Comparison saved to history![/green]")
+            else:
+                    console.print("[yellow]Comparison not saved to history.[/yellow]")
             input("Press any key to continue...")
         elif choice == 3:
             # Word frequency analysis for single query
