@@ -102,7 +102,7 @@ def handle_save(data: dict):
     If user has an active session, the query will be linked to that session.
     Query is always saved permanently, even if no session is active.
     """
-    choice = click.confirm("Do you want to save result the result? [y/N] ", default=True)
+    choice = click.confirm("Do you want to save the result? [y/N] ", default=True)
 
     if not choice:
         logger.info("Result not saved")
@@ -119,7 +119,15 @@ def handle_save(data: dict):
             
             # Link query to active session if one exists
             if session_id:
+                # Link query to session via session_queries junction table
                 db.add_query_to_session(session_id, query_id)
+                
+                # Also save to session cache if session is temporary
+                session = db.get_session(session_id)
+                if session and not session.get('is_saved', 1):
+                    # Session is temporary (is_saved = 0), save to cache as well
+                    db.save_query_to_session_cache(session_id, data)
+                
                 logger.info(f"Result saved and linked to session (id={query_id})")
                 console.print(f"[green]Result saved and linked to session (id={query_id})[/green]")
             else:

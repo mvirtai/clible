@@ -113,12 +113,13 @@ def run_history_menu():
             else:
                 filter_info = " (current session only)" if filter_current_session else ""
                 console.print(f"\n[bold]{analysis_type.replace('_', ' ').title()} Analyses ({len(history)} records{filter_info}):[/bold]\n")
-                console.print(f"{'#':<4} {'Scope':<14} {'Verses':<8} {'Created':<20}")
-                console.print("─" * 50)
+                console.print(f"{'#':<4} {'User':<15} {'Scope':<14} {'Verses':<8} {'Created':<20}")
+                console.print("─" * 65)
                 
                 for idx, item in enumerate(history, start=1):
                     console.print(
                         f"{idx:<4} "
+                        f"{item.get('user_name', 'N/A'):<15} "
                         f"{item['scope_type']:<14} "
                         f"{item['verse_count']:<8} "
                         f"{item['created_at']:<20}"
