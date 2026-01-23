@@ -143,6 +143,7 @@ class TestHandleSave:
         mock_query_id = "abc12345"
         mock_db.save_query = Mock(return_value=mock_query_id)
         mock_db.add_query_to_session = Mock()
+        mock_db.get_session = Mock(return_value={'id': 'session123', 'is_saved': 1})  # Saved session
         
         mock_querydb = mocker.patch('app.menus.api_menu.QueryDB')
         mock_querydb.return_value.__enter__ = Mock(return_value=mock_db)
@@ -163,6 +164,7 @@ class TestHandleSave:
         mock_confirm.assert_called_once_with("Do you want to save the result? [y/N] ", default=True)
         mock_db.save_query.assert_called_once_with(test_data)
         mock_db.add_query_to_session.assert_called_once_with("session123", mock_query_id)
+        mock_db.get_session.assert_called_once_with("session123")
         mock_logger.info.assert_called_once_with(f"Result saved and linked to session (id={mock_query_id})")
         mock_console.print.assert_called()
 
