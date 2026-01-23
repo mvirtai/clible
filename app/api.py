@@ -4,8 +4,6 @@ import requests
 from loguru import logger
 from pathlib import Path
 
-from app.db.queries import QueryDB
-
 mock_data_path = Path(__file__).resolve().parent.parent / "data" / "mock_data.json"
 
 BASE_URL = "http://bible-api.com"
@@ -30,6 +28,7 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
     
     # Check cache first
     try:
+        from app.db.queries import QueryDB
         with QueryDB() as db:
             cached_max = db.get_cached_max_chapter(book, translation)
             if cached_max is not None:
@@ -112,6 +111,7 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
     
     # Cache the result
     try:
+        from app.db.queries import QueryDB
         with QueryDB() as db:
             db.set_cached_max_chapter(book, translation, max_found)
             logger.debug(f"Cached max chapter for {book} ({translation}): {max_found}")
@@ -140,6 +140,7 @@ def calculate_max_verse(book: str, chapter: str, translation: str | None = None)
     
     # Check cache first
     try:
+        from app.db.queries import QueryDB
         chapter_num = int(chapter)
         with QueryDB() as db:
             cached_max = db.get_cached_max_verse(book, chapter_num, translation)
@@ -179,6 +180,7 @@ def calculate_max_verse(book: str, chapter: str, translation: str | None = None)
         
         # Cache the result
         try:
+            from app.db.queries import QueryDB
             chapter_num = int(chapter)
             with QueryDB() as db:
                 db.set_cached_max_verse(book, chapter_num, translation, max_verse)
