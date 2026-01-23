@@ -23,5 +23,8 @@ COPY --from=builder /workspace/app /workspace/app
 
 ENV PATH="/workspace/.venv/bin:$PATH"
 
+# Declare volumes for data persistence
+VOLUME ["/workspace/app/db", "/workspace/data"]
+
 ENTRYPOINT [ "python", "-m", "app.cli" ]
 CMD []
