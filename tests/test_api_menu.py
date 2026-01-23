@@ -160,7 +160,7 @@ class TestHandleSave:
         test_data = {'reference': 'John 3:16', 'verses': []}
         handle_save(test_data)
         
-        mock_confirm.assert_called_once_with("Do you want to save result the result? [y/N] ", default=True)
+        mock_confirm.assert_called_once_with("Do you want to save the result? [y/N] ", default=True)
         mock_db.save_query.assert_called_once_with(test_data)
         mock_db.add_query_to_session.assert_called_once_with("session123", mock_query_id)
         mock_logger.info.assert_called_once_with(f"Result saved and linked to session (id={mock_query_id})")
@@ -192,7 +192,7 @@ class TestHandleSave:
         test_data = {'reference': 'John 3:16', 'verses': []}
         handle_save(test_data)
         
-        mock_confirm.assert_called_once_with("Do you want to save result the result? [y/N] ", default=True)
+        mock_confirm.assert_called_once_with("Do you want to save the result? [y/N] ", default=True)
         mock_db.save_query.assert_called_once_with(test_data)
         # Should NOT call add_query_to_session when no session
         mock_db.add_query_to_session.assert_not_called()
@@ -241,6 +241,81 @@ class TestHandleSave:
         test_data = {'reference': 'John 3:16', 'verses': []}
         handle_save(test_data)
         
-        mock_confirm.assert_called_once_with("Do you want to save result the result? [y/N] ", default=True)
+        mock_confirm.assert_called_once_with("Do you want to save the result? [y/N] ", default=True)
         mock_querydb.assert_not_called()
         mock_logger.info.assert_called_once_with("Result not saved")
+
+    def test_save_with_temporary_session_saves_to_cache(self, mocker: MockerFixture):
+        """Test that save saves to session cache when session is temporary"""
+        mock_confirm = mocker.patch('app.menus.api_menu.click.confirm')
+        mock_confirm.return_value = True
+        
+        mock_db = Mock()
+        mock_query_id = "abc12345"
+        mock_db.save_query = Mock(return_value=mock_query_id)
+        mock_db.add_query_to_session = Mock()
+        mock_db.get_session = Mock(return_value={'id': 'session123', 'is_saved': 0})  # Temporary session
+        mock_db.save_query_to_session_cache = Mock(return_value="cache_id")
+        
+        mock_querydb = mocker.patch('app.menus.api_menu.QueryDB')
+        mock_querydb.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_querydb.return_value.__exit__ = Mock(return_value=False)
+        
+        # Mock AppState with active temporary session
+        mock_state = Mock()
+        mock_state.current_session_id = "session123"
+        mock_appstate = mocker.patch('app.state.AppState')
+        mock_appstate.return_value = mock_state
+        
+        mock_logger = mocker.patch('app.menus.api_menu.logger')
+        mock_console = mocker.patch('app.menus.api_menu.console')
+        
+        test_data = {'reference': 'John 3:16', 'verses': []}
+        handle_save(test_data)
+        
+        # Verify query was saved
+        mock_db.save_query.assert_called_once_with(test_data)
+        # Verify query was linked to session
+        mock_db.add_query_to_session.assert_called_once_with("session123", mock_query_id)
+        # Verify session was checked
+        mock_db.get_session.assert_called_once_with("session123")
+        # Verify query was saved to cache (temporary session)
+        mock_db.save_query_to_session_cache.assert_called_once_with("session123", test_data)
+        mock_logger.info.assert_called_once_with(f"Result saved and linked to session (id={mock_query_id})")
+
+    def test_save_with_saved_session_does_not_save_to_cache(self, mocker: MockerFixture):
+        """Test that save does NOT save to cache when session is saved (permanent)"""
+        mock_confirm = mocker.patch('app.menus.api_menu.click.confirm')
+        mock_confirm.return_value = True
+        
+        mock_db = Mock()
+        mock_query_id = "abc12345"
+        mock_db.save_query = Mock(return_value=mock_query_id)
+        mock_db.add_query_to_session = Mock()
+        mock_db.get_session = Mock(return_value={'id': 'session123', 'is_saved': 1})  # Saved session
+        mock_db.save_query_to_session_cache = Mock()
+        
+        mock_querydb = mocker.patch('app.menus.api_menu.QueryDB')
+        mock_querydb.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_querydb.return_value.__exit__ = Mock(return_value=False)
+        
+        # Mock AppState with active saved session
+        mock_state = Mock()
+        mock_state.current_session_id = "session123"
+        mock_appstate = mocker.patch('app.state.AppState')
+        mock_appstate.return_value = mock_state
+        
+        mock_logger = mocker.patch('app.menus.api_menu.logger')
+        mock_console = mocker.patch('app.menus.api_menu.console')
+        
+        test_data = {'reference': 'John 3:16', 'verses': []}
+        handle_save(test_data)
+        
+        # Verify query was saved
+        mock_db.save_query.assert_called_once_with(test_data)
+        # Verify query was linked to session
+        mock_db.add_query_to_session.assert_called_once_with("session123", mock_query_id)
+        # Verify session was checked
+        mock_db.get_session.assert_called_once_with("session123")
+        # Verify query was NOT saved to cache (saved session)
+        mock_db.save_query_to_session_cache.assert_not_called()
