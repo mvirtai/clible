@@ -90,6 +90,25 @@ class QueryDB:
                 name TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- Cache for max chapters per book and translation
+            CREATE TABLE IF NOT EXISTS book_chapter_cache (
+                book_name TEXT NOT NULL,
+                translation TEXT NOT NULL,
+                max_chapter INTEGER NOT NULL,
+                last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (book_name, translation)
+            );
+
+            -- Cache for max verses per book, chapter, and translation
+            CREATE TABLE IF NOT EXISTS book_verse_cache (
+                book_name TEXT NOT NULL,
+                chapter INTEGER NOT NULL,
+                translation TEXT NOT NULL,
+                max_verse INTEGER NOT NULL,
+                last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (book_name, chapter, translation)
+            );
         """)
 
     def _create_query_tables(self):
@@ -749,6 +768,92 @@ class QueryDB:
             query_ids
         )
         return [dict(row) for row in self.cur.fetchall()]
+
+    # ============================================================================
+    #   CACHE OPERATIONS
+    # ============================================================================
+
+    def get_cached_max_chapter(self, book_name: str, translation: str) -> int | None:
+        """
+        Get cached max chapter for a book and translation.
+        
+        Args:
+            book_name: Name of the book (e.g., "John")
+            translation: Translation identifier (e.g., "web")
+            
+        Returns:
+            Cached max chapter number, or None if not found
+        """
+        self.cur.execute(
+            """
+            SELECT max_chapter FROM book_chapter_cache
+            WHERE book_name = ? AND translation = ?
+            """,
+            (book_name, translation.lower())
+        )
+        row = self.cur.fetchone()
+        return row["max_chapter"] if row else None
+
+    def set_cached_max_chapter(self, book_name: str, translation: str, max_chapter: int) -> None:
+        """
+        Cache max chapter for a book and translation.
+        
+        Args:
+            book_name: Name of the book (e.g., "John")
+            translation: Translation identifier (e.g., "web")
+            max_chapter: Maximum chapter number to cache
+        """
+        self.cur.execute(
+            """
+            INSERT OR REPLACE INTO book_chapter_cache
+            (book_name, translation, max_chapter, last_updated)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (book_name, translation.lower(), max_chapter)
+        )
+        self.conn.commit()
+
+    def get_cached_max_verse(self, book_name: str, chapter: int, translation: str) -> int | None:
+        """
+        Get cached max verse for a book, chapter, and translation.
+        
+        Args:
+            book_name: Name of the book (e.g., "John")
+            chapter: Chapter number
+            translation: Translation identifier (e.g., "web")
+            
+        Returns:
+            Cached max verse number, or None if not found
+        """
+        self.cur.execute(
+            """
+            SELECT max_verse FROM book_verse_cache
+            WHERE book_name = ? AND chapter = ? AND translation = ?
+            """,
+            (book_name, chapter, translation.lower())
+        )
+        row = self.cur.fetchone()
+        return row["max_verse"] if row else None
+
+    def set_cached_max_verse(self, book_name: str, chapter: int, translation: str, max_verse: int) -> None:
+        """
+        Cache max verse for a book, chapter, and translation.
+        
+        Args:
+            book_name: Name of the book (e.g., "John")
+            chapter: Chapter number
+            translation: Translation identifier (e.g., "web")
+            max_verse: Maximum verse number to cache
+        """
+        self.cur.execute(
+            """
+            INSERT OR REPLACE INTO book_verse_cache
+            (book_name, chapter, translation, max_verse, last_updated)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (book_name, chapter, translation.lower(), max_verse)
+        )
+        self.conn.commit()
 
     # ============================================================================
     #   CONTEXT MANAGER
