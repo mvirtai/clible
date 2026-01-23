@@ -1,4 +1,5 @@
 import json
+import time
 import requests
 from loguru import logger
 from pathlib import Path
@@ -42,6 +43,7 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
     max_found = 1
     
     for test_chapter in test_chapters:
+        time.sleep(1)  # Rate limiting: 1 second delay between API calls
         url = f"{BASE_URL}/{book}+{test_chapter}{translation_sentence}"
         try:
             response = requests.get(url, timeout=5)
@@ -58,6 +60,7 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
     if max_found >= 10:
         # Search upward from max_found to find the actual max
         for chapter_num in range(max_found + 1, 151):
+            time.sleep(1)  # Rate limiting: 1 second delay between API calls
             url = f"{BASE_URL}/{book}+{chapter_num}{translation_sentence}"
             try:
                 response = requests.get(url, timeout=5)
@@ -75,6 +78,7 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
     else:
         # If max_found < 10, search upward from 1
         for chapter_num in range(2, 11):
+            time.sleep(1)  # Rate limiting: 1 second delay between API calls
             url = f"{BASE_URL}/{book}+{chapter_num}{translation_sentence}"
             try:
                 response = requests.get(url, timeout=5)
@@ -113,6 +117,7 @@ def calculate_max_verse(book: str, chapter: str, translation: str | None = None)
     
     try:
         logger.debug(f"Fetching chapter to calculate max verse: {url}")
+        time.sleep(1)  # Rate limiting: 1 second delay before API call
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
@@ -145,6 +150,7 @@ def fetch_book_list() -> list[str]:
     """Fetch a list of books from bible-api.com API"""
     url = f"{BASE_URL}/data/web"
     try:
+        time.sleep(1)  # Rate limiting: 1 second delay before API call
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
@@ -194,6 +200,7 @@ def fetch_by_reference(
         if max_chapter:
             chapter = str(max_chapter)
             logger.info(f"Using calculated max chapter: {chapter}")
+            time.sleep(1)  # Rate limiting: 1 second delay after calculating max chapter
         else:
             logger.error(f"Could not calculate max chapter for {book}")
             return None
@@ -228,6 +235,7 @@ def fetch_by_reference(
 
     # API call
     try:
+        time.sleep(1)  # Rate limiting: 1 second delay before API call
         response = requests.get(url, timeout=10)
         response.raise_for_status()
 
