@@ -1,0 +1,27 @@
+services:
+  clible:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clible
+    stdin_open: true
+    tty: true
+    volumes:
+      # Named volumes (recommended for production)
+      # Docker manages these automatically
+      - clible-db:/workspace/app/db
+      - clible-data:/workspace/data
+      
+      # Alternative: Bind mounts (for development - uncomment to use)
+      # Allows direct access to files from host system
+      # - ./local-data/db:/workspace/app/db
+      # - ./local-data/data:/workspace/data
+    restart: unless-stopped
+
+volumes:
+  # Named volumes for data persistence
+  clible-db:
+    driver: local
+  clible-data:
+    driver: local
+
