@@ -222,7 +222,12 @@ def fetch_by_reference(
     random: bool = False, 
     translation: str | None = None,
     use_mock: bool = False) -> dict:
-    """Fetch a  verse, verses or a chapter from bible-api.com API"""
+    """
+    Fetch a verse, verses or a chapter from bible-api.com API.
+    
+    Checks cache (saved queries and session cache) before making API calls
+    to avoid unnecessary network requests.
+    """
 
     # Possibility to use mock data for testing purposes
     if use_mock:
@@ -268,6 +273,39 @@ def fetch_by_reference(
             # Fallback to fetching entire chapter if max verse calculation fails
             logger.warning(f"Could not calculate max verse, fetching entire chapter instead")
             verses = None
+    
+    # Check cache before making API calls (skip for random verses)
+    # Do this after handling 'all' cases so we have the final reference
+    if not random and book and chapter:
+        try:
+            from app.db.queries import QueryDB
+            from app.state import AppState
+            
+            # Build reference string for cache lookup
+            if verses:
+                reference = f"{book} {chapter}:{verses}"
+            else:
+                reference = f"{book} {chapter}"
+            
+            # Get current session ID if available
+            state = AppState()
+            current_session_id = state.current_session_id if state else None
+            
+            with QueryDB() as db:
+                # First check saved queries
+                cached_data = db.get_saved_query_by_reference(reference, translation)
+                if cached_data:
+                    logger.info(f"Using cached data from saved queries for {reference} ({translation})")
+                    return cached_data
+                
+                # Then check session cache (all sessions or current session)
+                cached_data = db.get_cached_query_by_reference(reference, translation, current_session_id)
+                if cached_data:
+                    logger.info(f"Using cached data from session cache for {reference} ({translation})")
+                    return cached_data
+        except Exception as e:
+            logger.warning(f"Failed to check cache: {e}")
+            # Continue to API call if cache check fails
     
     # Fetch a random verse
     if random:

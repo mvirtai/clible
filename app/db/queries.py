@@ -624,6 +624,124 @@ class QueryDB:
             return query_data.get("verses", [])
         return []
 
+    def get_saved_query_by_reference(self, reference: str, translation: str | None = None) -> dict | None:
+        """
+        Get a saved query by reference and optionally by translation.
+        
+        Args:
+            reference: Verse reference string (e.g., "John 3:16")
+            translation: Optional translation identifier (e.g., "web")
+            
+        Returns:
+            Query data dictionary matching the structure of API-fetched data, or None if not found
+        """
+        if not reference:
+            return None
+        
+        # Build query with optional translation filter
+        sql = """
+            SELECT
+                q.id,
+                q.reference,
+                q.created_at,
+                t.id as translation_id,
+                t.abbr as translation_abbr,
+                t.name as translation_name,
+                t.note as translation_note
+            FROM queries q
+            LEFT JOIN translations t ON q.translation_id = t.id
+            WHERE q.reference = ?
+        """
+        params: tuple = (reference,)
+        
+        if translation:
+            sql += " AND LOWER(t.abbr) = ?"
+            params = (reference, translation.lower())
+        
+        self.cur.execute(sql, params)
+        query_row = self.cur.fetchone()
+        
+        if not query_row:
+            return None
+        
+        # Get verses
+        self.cur.execute(
+            """
+            SELECT
+                b.name as book_name,
+                v.chapter,
+                v.verse,
+                v.text
+            FROM verses v
+            JOIN books b ON v.book_id = b.id
+            WHERE v.query_id = ?
+            ORDER BY v.chapter, v.verse
+            """, (query_row["id"],)
+        )
+        verses = [dict(row) for row in self.cur.fetchall()]
+        
+        # Format the dictionary to match the structure of API-fetched data
+        result = {
+            "reference": query_row["reference"],
+            "verses": verses,
+        }
+        
+        # Add translation info if it exists
+        if query_row["translation_id"]:
+            result["translation_id"] = query_row["translation_abbr"]
+            result["translation_name"] = query_row["translation_name"]
+            if query_row["translation_note"]:
+                result["translation_note"] = query_row["translation_note"]
+        
+        return result
+
+    def get_cached_query_by_reference(self, reference: str, translation: str | None = None, session_id: str | None = None) -> dict | None:
+        """
+        Get a cached query from session cache by reference and optionally by translation.
+        
+        Checks all session caches if session_id is not provided, or only the specified session.
+        
+        Args:
+            reference: Verse reference string (e.g., "John 3:16")
+            translation: Optional translation identifier (e.g., "web")
+            session_id: Optional session ID to limit search to specific session
+            
+        Returns:
+            Cached query data dictionary, or None if not found
+        """
+        if not reference:
+            return None
+        
+        # Build query
+        sql = """
+            SELECT id, reference, verse_data, created_at, session_id
+            FROM session_queries_cache
+            WHERE reference = ?
+        """
+        params: tuple = (reference,)
+        
+        if session_id:
+            sql += " AND session_id = ?"
+            params = (reference, session_id)
+        
+        sql += " ORDER BY created_at DESC LIMIT 1"
+        
+        self.cur.execute(sql, params)
+        row = self.cur.fetchone()
+        
+        if not row:
+            return None
+        
+        verse_data = self._deserialize_verse_data(row["verse_data"])
+        
+        # Filter by translation if specified
+        if translation:
+            verse_translation = verse_data.get("translation_id", "").lower()
+            if verse_translation != translation.lower():
+                return None
+        
+        return verse_data
+
     # ============================================================================
     #   ANALYTICS OPERATIONS
     # ============================================================================
