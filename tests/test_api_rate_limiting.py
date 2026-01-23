@@ -45,10 +45,12 @@ class TestCalculateMaxChapterRateLimiting:
     def test_adds_delay_during_upward_search(self, mocker: MockerFixture):
         """Test that delays are added during upward chapter search"""
         # Mock cache to return None (no cached value)
-        mock_get_cache = mocker.patch('app.db.queries.QueryDB')
+        mock_db_context = Mock()
+        mock_db_context.get_cached_max_chapter.return_value = None
         mock_db_instance = Mock()
-        mock_db_instance.__enter__.return_value.get_cached_max_chapter.return_value = None
-        mock_get_cache.return_value = mock_db_instance
+        mock_db_instance.__enter__ = Mock(return_value=mock_db_context)
+        mock_db_instance.__exit__ = Mock(return_value=None)
+        mocker.patch('app.db.queries.QueryDB', return_value=mock_db_instance)
         
         mock_sleep = mocker.patch('app.api.time.sleep')
         mock_get = mocker.patch('app.api.requests.get')
