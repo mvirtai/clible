@@ -7,6 +7,7 @@ displaying them side-by-side for easy comparison.
 Currently supports comparison of two translations at a time.
 """
 
+import time
 from rich.table import Table
 from rich.panel import Panel
 from loguru import logger
@@ -71,6 +72,9 @@ def fetch_verse_comparison(
     if not verse_data_1:
         logger.error(f"Failed to fetch verse in translation '{translation1}'")
         return None
+    
+    # Rate limiting: wait 1 second between API calls
+    time.sleep(1)
     
     # Fetch second translation
     verse_data_2 = fetch_by_reference(book, chapter, verses, translation=translation2)

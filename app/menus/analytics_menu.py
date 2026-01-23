@@ -83,10 +83,11 @@ def run_analytic_menu():
                     if 1 <= idx <= len(AVAILABLE_TRANSLATIONS):
                         return AVAILABLE_TRANSLATIONS[idx - 1]
                 except ValueError:
-                    # Try to match by name
-                    for trans in AVAILABLE_TRANSLATIONS:
-                        if trans.lower() == choice:
-                            return trans
+                    pass
+                # Try to match by name
+                for trans in AVAILABLE_TRANSLATIONS:
+                    if trans.lower() == choice:
+                        return trans
                 return "web"  # Default fallback
             
             translation1 = parse_translation(trans1_choice) if trans1_choice else "web"
@@ -97,39 +98,39 @@ def run_analytic_menu():
             
             if comparison_data:
                 render_side_by_side_comparison(comparison_data)
+                spacing_after_output()
+                state = AppState()
+                save_choice = input("\nSave this comparison to history? (y/n): ").strip().lower()
+                if save_choice == 'y':
+                    # Create an AnalysisTracker instance with the current user and session
+                    tracker = AnalysisTracker(
+                        user_id=state.current_user_id,
+                        session_id=state.current_session_id
+                    )
+                    # Save the translation comparison data for history purposes
+                    # Calculate verse count and statistics from comparison data
+                    trans1_verses = comparison_data.get("translation1", {}).get("verses", [])
+                    verse_count = len(trans1_verses) if trans1_verses else 0
+                    stats = calculate_translation_differences(comparison_data)
+                    tracker.save_translation_comparison(
+                        comparison_data=comparison_data,
+                        scope_type="translation",
+                        scope_details={
+                            "translation1": translation1,
+                            "translation2": translation2,
+                            "statistics": stats
+                        },
+                        verse_count=verse_count
+                    )
+                    console.print("[green]✓ Comparison saved to history![/green]")
+                else:
+                    console.print("[yellow]Comparison not saved to history.[/yellow]")
             else:
                 console.print("[red]Failed to fetch verse comparison. Please check your input and try again.[/red]")
-            
-            spacing_after_output()
-            state = AppState()
-            save_choice = input("\nSave this comparison to history? (y/n): ").strip().lower()
-            if save_choice == 'y':
-                # Create an AnalysisTracker instance with the current user and session
-                tracker = AnalysisTracker(
-                    user_id=state.current_user_id,
-                    session_id=state.current_session_id
-                )
-                # Save the translation comparison data for history purposes
-                # Calculate verse count and statistics from comparison data
-                trans1_verses = comparison_data.get("translation1", {}).get("verses", [])
-                verse_count = len(trans1_verses) if trans1_verses else 0
-                stats = calculate_translation_differences(comparison_data)
-                tracker.save_translation_comparison(
-                    comparison_data=comparison_data,
-                    scope_type="translation",
-                    scope_details={
-                        "translation1": translation1,
-                        "translation2": translation2,
-                        "statistics": stats
-                    },
-                    verse_count=verse_count
-                )
-                console.print("[green]✓ Comparison saved to history![/green]")
-            else:
-                    console.print("[yellow]Comparison not saved to history.[/yellow]")
+                spacing_after_output()
             input("Press any key to continue...")
         elif choice == 3:
-            # Word frequency analysis for single query
+            # Word frequency analysis for one or more queries
             with QueryDB() as db:
                 all_saved_queries = db.show_all_saved_queries()
                 
@@ -140,58 +141,85 @@ def run_analytic_menu():
                     continue
                 
                 console.print("\n[bold]Saved queries:[/bold]")
-                selected_query = select_from_list(all_saved_queries, "Select query for word frequency analysis")
+                for idx, query in enumerate(all_saved_queries, start=1):
+                    console.print(f"[bold cyan][{idx}][/bold cyan] ID: {query['id']} | {query['reference']} | {query['verse_count']} verses")
                 
-                if not selected_query:
+                console.print("\n[dim]Enter query numbers or IDs separated by commas (e.g., 1,2,5 or 1-31 or 85-90,92)[/dim]")
+                console.print("[dim]You can use ranges like 1-31 to select multiple consecutive queries[/dim]")
+                user_input = input("\nYour selection: ").strip()
+                if not user_input:
                     console.print("[yellow]Analysis cancelled.[/yellow]")
                     spacing_after_output()
                     input("Press any key to continue...")
                     continue
+
+                selected_indices = parse_selection_range(user_input, len(all_saved_queries))
                 
-                # Get verse data
-                verse_data = db.get_verses_by_query_id(selected_query['id'])
-                
-                if verse_data:
-                    analyzer = WordFrequencyAnalyzer()
-                    
-                    # Perform analysis
-                    top_words = analyzer.analyze_top(verse_data, top_n=20)
-                    vocab_info = analyzer.count_vocabulary_size(verse_data)
-                    
-                    # Display text results
-                    analyzer.show_word_frequency_analysis(verse_data)
+                if not selected_indices:
+                    console.print("[yellow]Analysis cancelled.[/yellow]")
                     spacing_after_output()
-                    
-                    # Prompt for visualization
-                    visualize, display_mode = prompt_visualization_choice()
-                    if visualize:
-                        analyzer.show_word_frequency_analysis(
-                            verse_data, 
-                            visualize=True, 
-                            viz_display=display_mode
-                        )
-                    
-                    # Ask to save to history
-                    if input("\nSave this analysis to history? (y/n): ").lower() == 'y':
-                        state = AppState()
-                        tracker = AnalysisTracker(
-                            user_id=state.current_user_id,
-                            session_id=state.current_session_id
-                        )
-                        tracker.save_word_frequency_analysis(
-                            word_freq=top_words,
-                            vocab_info=vocab_info,
-                            scope_type="query",
-                            scope_details={"query_id": selected_query['id']},
-                            verse_count=len(verse_data)
-                        )
-                        console.print("[green]✓ Analysis saved to history![/green]")
+                    input("Press any key to continue...")
+                    continue
+
+                # Convert indices to query_ids
+                query_ids = [all_saved_queries[idx - 1]['id'] for idx in selected_indices]
+                
+                # Get combined verses from selected queries
+                if len(query_ids) == 1:
+                    verse_data = db.get_verses_by_query_id(query_ids[0])
                 else:
-                    console.print("[red]No verses found for the given query.[/red]")
+                    verse_data = db.get_verses_from_multiple_queries(query_ids)
+                
+                if not verse_data:
+                    console.print("[red]No verses found for the selected query/queries.[/red]")
                     spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                analyzer = WordFrequencyAnalyzer()
+                
+                # Perform analysis
+                top_words = analyzer.analyze_top(verse_data, top_n=20)
+                vocab_info = analyzer.count_vocabulary_size(verse_data)
+                
+                # Display text results
+                analyzer.show_word_frequency_analysis(verse_data)
+                spacing_after_output()
+                
+                # Prompt for visualization
+                visualize, display_mode = prompt_visualization_choice()
+                if visualize:
+                    analyzer.show_word_frequency_analysis(
+                        verse_data, 
+                        visualize=True, 
+                        viz_display=display_mode
+                    )
+                
+                # Ask to save to history
+                if input("\nSave this analysis to history? (y/n): ").lower() == 'y':
+                    state = AppState()
+                    tracker = AnalysisTracker(
+                        user_id=state.current_user_id,
+                        session_id=state.current_session_id
+                    )
+                    if len(query_ids) == 1:
+                        scope_type = "query"
+                        scope_details = {"query_id": query_ids[0]}
+                    else:
+                        scope_type = "multi_query"
+                        scope_details = {"query_ids": query_ids}
+                    tracker.save_word_frequency_analysis(
+                        word_freq=top_words,
+                        vocab_info=vocab_info,
+                        scope_type=scope_type,
+                        scope_details=scope_details,
+                        verse_count=len(verse_data)
+                    )
+                    console.print("[green]✓ Analysis saved to history![/green]")
                 
                 input("Press any key to continue...")
         elif choice == 4:
+            # Phrase analysis for one or more queries
             with QueryDB() as db:
                 all_saved_queries = db.show_all_saved_queries()
                 
@@ -202,51 +230,81 @@ def run_analytic_menu():
                     continue
                 
                 console.print("\n[bold]Saved queries:[/bold]")
-                selected_query = select_from_list(all_saved_queries, "Select query for phrase analysis")
+                for idx, query in enumerate(all_saved_queries, start=1):
+                    console.print(f"[bold cyan][{idx}][/bold cyan] ID: {query['id']} | {query['reference']} | {query['verse_count']} verses")
                 
-                if not selected_query:
+                console.print("\n[dim]Enter query numbers or IDs separated by commas (e.g., 1,2,5 or 1-31 or 85-90,92)[/dim]")
+                console.print("[dim]You can use ranges like 1-31 to select multiple consecutive queries[/dim]")
+                user_input = input("\nYour selection: ").strip()
+                if not user_input:
                     console.print("[yellow]Analysis cancelled.[/yellow]")
                     spacing_after_output()
                     input("Press any key to continue...")
                     continue
+
+                selected_indices = parse_selection_range(user_input, len(all_saved_queries))
                 
-                verse_data = db.get_verses_by_query_id(selected_query['id'])
-                if verse_data:
-                    # Perform analysis
-                    analyzer = PhraseAnalyzer()
-                    analyzer.show_phrase_analysis(verse_data)
+                if not selected_indices:
+                    console.print("[yellow]Analysis cancelled.[/yellow]")
                     spacing_after_output()
-                    
-                    # Prompt for visualization
-                    visualize, display_mode = prompt_visualization_choice()
-                    if visualize:
-                        analyzer.show_phrase_analysis(verse_data, visualize=True, viz_display=display_mode)
-                    
-                    # Ask to save analysis to history
-                    if input("\nSave this analysis to history? (y/n): ").lower() == 'y':
-                        # Get analysis data
-                        bigrams = analyzer.analyze_bigrams(verse_data, top_n=20)
-                        trigrams = analyzer.analyze_trigrams(verse_data, top_n=20)
-                        
-                        # Create tracker with current user/session
-                        state = AppState()
-                        tracker = AnalysisTracker(
-                            user_id=state.current_user_id,
-                            session_id=state.current_session_id
-                        )
-                        
-                        # Save phrase analysis to database
-                        tracker.save_phrase_analysis(
-                            bigrams=bigrams,
-                            trigrams=trigrams,
-                            scope_type="query",
-                            scope_details={"query_id": selected_query['id']},
-                            verse_count=len(verse_data)
-                        )
-                        console.print("[green]✓ Phrase analysis saved to history![/green]")
+                    input("Press any key to continue...")
+                    continue
+
+                # Convert indices to query_ids
+                query_ids = [all_saved_queries[idx - 1]['id'] for idx in selected_indices]
+                
+                # Get combined verses from selected queries
+                if len(query_ids) == 1:
+                    verse_data = db.get_verses_by_query_id(query_ids[0])
                 else:
-                    console.print("[red]No verses found for the given query.[/red]")
+                    verse_data = db.get_verses_from_multiple_queries(query_ids)
+                
+                if not verse_data:
+                    console.print("[red]No verses found for the selected query/queries.[/red]")
                     spacing_after_output()
+                    input("Press any key to continue...")
+                    continue
+                
+                # Perform analysis
+                analyzer = PhraseAnalyzer()
+                analyzer.show_phrase_analysis(verse_data)
+                spacing_after_output()
+                
+                # Prompt for visualization
+                visualize, display_mode = prompt_visualization_choice()
+                if visualize:
+                    analyzer.show_phrase_analysis(verse_data, visualize=True, viz_display=display_mode)
+                
+                # Ask to save analysis to history
+                if input("\nSave this analysis to history? (y/n): ").lower() == 'y':
+                    # Get analysis data
+                    bigrams = analyzer.analyze_bigrams(verse_data, top_n=20)
+                    trigrams = analyzer.analyze_trigrams(verse_data, top_n=20)
+                    
+                    # Create tracker with current user/session
+                    state = AppState()
+                    tracker = AnalysisTracker(
+                        user_id=state.current_user_id,
+                        session_id=state.current_session_id
+                    )
+                    
+                    # Determine scope type and details
+                    if len(query_ids) == 1:
+                        scope_type = "query"
+                        scope_details = {"query_id": query_ids[0]}
+                    else:
+                        scope_type = "multi_query"
+                        scope_details = {"query_ids": query_ids}
+                    
+                    # Save phrase analysis to database
+                    tracker.save_phrase_analysis(
+                        bigrams=bigrams,
+                        trigrams=trigrams,
+                        scope_type=scope_type,
+                        scope_details=scope_details,
+                        verse_count=len(verse_data)
+                    )
+                    console.print("[green]✓ Phrase analysis saved to history![/green]")
                 
                 input("Press any key to continue...")
         elif choice == 5:
@@ -351,7 +409,8 @@ def run_analytic_menu():
                 for idx, query in enumerate(all_saved_queries, start=1):
                     console.print(f"[bold cyan][{idx}][/bold cyan] ID: {query['id']} | {query['reference']} | {query['verse_count']} verses")
                 
-                console.print("\n[dim]Enter query numbers or IDs separated by commas (e.g., 1,2,5 or abc123,def456)[/dim]")
+                console.print("\n[dim]Enter query numbers or IDs separated by commas (e.g., 1,2,5 or 85-90,92 or abc123,def456)[/dim]")
+                console.print("[dim]You can use ranges like 85-90 to select multiple consecutive queries[/dim]")
                 user_input = input("\nYour selection: ").strip()
                 if not user_input:
                     console.print("[yellow]Analysis cancelled.[/yellow]")
