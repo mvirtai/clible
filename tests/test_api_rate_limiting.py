@@ -24,6 +24,14 @@ class TestCalculateMaxChapterRateLimiting:
 
     def test_adds_delay_between_test_chapters(self, mocker: MockerFixture):
         """Test that delays are added between chapter discovery calls"""
+        # Mock cache to return None (no cached value) so API calls are made
+        mock_db_context = Mock()
+        mock_db_context.get_cached_max_chapter.return_value = None
+        mock_db_instance = Mock()
+        mock_db_instance.__enter__ = Mock(return_value=mock_db_context)
+        mock_db_instance.__exit__ = Mock(return_value=None)
+        mocker.patch('app.db.queries.QueryDB', return_value=mock_db_instance)
+        
         mock_sleep = mocker.patch('app.api.time.sleep')
         mock_get = mocker.patch('app.api.requests.get')
         
@@ -89,6 +97,14 @@ class TestCalculateMaxVerseRateLimiting:
 
     def test_adds_delay_before_api_call(self, mocker: MockerFixture):
         """Test that delay is added before fetching chapter for verse calculation"""
+        # Mock cache to return None (no cached value) so API call is made
+        mock_db_context = Mock()
+        mock_db_context.get_cached_max_verse.return_value = None
+        mock_db_instance = Mock()
+        mock_db_instance.__enter__ = Mock(return_value=mock_db_context)
+        mock_db_instance.__exit__ = Mock(return_value=None)
+        mocker.patch('app.db.queries.QueryDB', return_value=mock_db_instance)
+        
         mock_sleep = mocker.patch('app.api.time.sleep')
         mock_get = mocker.patch('app.api.requests.get')
         
