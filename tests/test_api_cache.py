@@ -34,8 +34,12 @@ class TestCacheMaxChapter:
             mock_sleep = mocker.patch('app.api.time.sleep')
             
             # Mock QueryDB to use our temporary database
-            mock_db_init = mocker.patch('app.api.QueryDB')
-            mock_db_init.return_value.__enter__.return_value.get_cached_max_chapter.return_value = 21
+            original_querydb = QueryDB
+            def mock_querydb(*args, **kwargs):
+                if not args and not kwargs:
+                    return original_querydb(db_path)
+                return original_querydb(*args, **kwargs)
+            mocker.patch('app.db.queries.QueryDB', side_effect=mock_querydb)
             
             # Call function
             result = calculate_max_chapter("John", "web")
@@ -70,11 +74,10 @@ class TestCacheMaxChapter:
             # Mock QueryDB to use our temporary database
             original_querydb = QueryDB
             def mock_querydb(*args, **kwargs):
-                if 'db_path' not in kwargs and len(args) == 0:
+                if not args and not kwargs:
                     return original_querydb(db_path)
                 return original_querydb(*args, **kwargs)
-            
-            mocker.patch('app.api.QueryDB', side_effect=mock_querydb)
+            mocker.patch('app.db.queries.QueryDB', side_effect=mock_querydb)
             
             # First call - should calculate and cache
             result = calculate_max_chapter("John", "web")
@@ -92,9 +95,10 @@ class TestCacheMaxChapter:
 
     def test_handles_cache_failure_gracefully(self, mocker: MockerFixture):
         """Test that function works even if cache check fails"""
-        # Mock QueryDB to raise an exception
-        mock_querydb = mocker.patch('app.api.QueryDB')
-        mock_querydb.side_effect = Exception("Database error")
+        # Mock QueryDB to raise an exception when imported
+        def raise_on_import(*args, **kwargs):
+            raise Exception("Database error")
+        mocker.patch('app.db.queries.QueryDB', side_effect=raise_on_import)
         
         # Mock requests
         mock_response = Mock()
@@ -130,8 +134,12 @@ class TestCacheMaxVerse:
             mock_sleep = mocker.patch('app.api.time.sleep')
             
             # Mock QueryDB to use our temporary database
-            mock_db_init = mocker.patch('app.api.QueryDB')
-            mock_db_init.return_value.__enter__.return_value.get_cached_max_verse.return_value = 36
+            original_querydb = QueryDB
+            def mock_querydb(*args, **kwargs):
+                if not args and not kwargs:
+                    return original_querydb(db_path)
+                return original_querydb(*args, **kwargs)
+            mocker.patch('app.db.queries.QueryDB', side_effect=mock_querydb)
             
             # Call function
             result = calculate_max_verse("John", "3", "web")
@@ -170,11 +178,10 @@ class TestCacheMaxVerse:
             # Mock QueryDB to use our temporary database
             original_querydb = QueryDB
             def mock_querydb(*args, **kwargs):
-                if 'db_path' not in kwargs and len(args) == 0:
+                if not args and not kwargs:
                     return original_querydb(db_path)
                 return original_querydb(*args, **kwargs)
-            
-            mocker.patch('app.api.QueryDB', side_effect=mock_querydb)
+            mocker.patch('app.db.queries.QueryDB', side_effect=mock_querydb)
             
             # First call - should calculate and cache
             result = calculate_max_verse("John", "3", "web")
@@ -192,9 +199,10 @@ class TestCacheMaxVerse:
 
     def test_handles_cache_failure_gracefully(self, mocker: MockerFixture):
         """Test that function works even if cache check fails"""
-        # Mock QueryDB to raise an exception
-        mock_querydb = mocker.patch('app.api.QueryDB')
-        mock_querydb.side_effect = Exception("Database error")
+        # Mock QueryDB to raise an exception when imported
+        def raise_on_import(*args, **kwargs):
+            raise Exception("Database error")
+        mocker.patch('app.db.queries.QueryDB', side_effect=raise_on_import)
         
         # Mock requests
         mock_response = Mock()
