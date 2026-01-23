@@ -4,6 +4,8 @@ import requests
 from loguru import logger
 from pathlib import Path
 
+from app.db.queries import QueryDB
+
 mock_data_path = Path(__file__).resolve().parent.parent / "data" / "mock_data.json"
 
 BASE_URL = "http://bible-api.com"
@@ -15,6 +17,7 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
     and finding the highest valid chapter number.
     
     Uses a binary search approach: tries common chapter numbers first, then narrows down.
+    Checks cache first before making API calls.
     
     Args:
         book: Book name (e.g., "Romans")
@@ -24,6 +27,17 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
         Maximum chapter number found in the book, or None if unable to determine
     """
     translation = translation.lower() if translation else "web"
+    
+    # Check cache first
+    try:
+        with QueryDB() as db:
+            cached_max = db.get_cached_max_chapter(book, translation)
+            if cached_max is not None:
+                logger.info(f"Using cached max chapter for {book} ({translation}): {cached_max}")
+                return cached_max
+    except Exception as e:
+        logger.warning(f"Failed to check cache for max chapter: {e}")
+    
     translation_sentence = "?translation=" + translation
     
     # First verify book exists by trying chapter 1
@@ -95,6 +109,15 @@ def calculate_max_chapter(book: str, translation: str | None = None) -> int | No
                 break
     
     logger.info(f"Calculated max chapter for {book}: {max_found}")
+    
+    # Cache the result
+    try:
+        with QueryDB() as db:
+            db.set_cached_max_chapter(book, translation, max_found)
+            logger.debug(f"Cached max chapter for {book} ({translation}): {max_found}")
+    except Exception as e:
+        logger.warning(f"Failed to cache max chapter: {e}")
+    
     return max_found
 
 
@@ -102,6 +125,8 @@ def calculate_max_verse(book: str, chapter: str, translation: str | None = None)
     """
     Calculate the maximum verse number in a chapter by fetching the chapter and
     finding the highest verse number in the response.
+    
+    Checks cache first before making API calls.
     
     Args:
         book: Book name (e.g., "John")
@@ -112,6 +137,18 @@ def calculate_max_verse(book: str, chapter: str, translation: str | None = None)
         Maximum verse number found in the chapter, or None if unable to determine
     """
     translation = translation.lower() if translation else "web"
+    
+    # Check cache first
+    try:
+        chapter_num = int(chapter)
+        with QueryDB() as db:
+            cached_max = db.get_cached_max_verse(book, chapter_num, translation)
+            if cached_max is not None:
+                logger.info(f"Using cached max verse for {book} {chapter} ({translation}): {cached_max}")
+                return cached_max
+    except (ValueError, Exception) as e:
+        logger.warning(f"Failed to check cache for max verse: {e}")
+    
     translation_sentence = "?translation=" + translation
     url = f"{BASE_URL}/{book}+{chapter}{translation_sentence}"
     
@@ -139,6 +176,16 @@ def calculate_max_verse(book: str, chapter: str, translation: str | None = None)
             return None
         
         logger.info(f"Calculated max verse for {book} {chapter}: {max_verse}")
+        
+        # Cache the result
+        try:
+            chapter_num = int(chapter)
+            with QueryDB() as db:
+                db.set_cached_max_verse(book, chapter_num, translation, max_verse)
+                logger.debug(f"Cached max verse for {book} {chapter} ({translation}): {max_verse}")
+        except (ValueError, Exception) as e:
+            logger.warning(f"Failed to cache max verse: {e}")
+        
         return max_verse
         
     except (requests.exceptions.RequestException, json.JSONDecodeError, ValueError) as e:
