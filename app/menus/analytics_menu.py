@@ -83,10 +83,11 @@ def run_analytic_menu():
                     if 1 <= idx <= len(AVAILABLE_TRANSLATIONS):
                         return AVAILABLE_TRANSLATIONS[idx - 1]
                 except ValueError:
-                    # Try to match by name
-                    for trans in AVAILABLE_TRANSLATIONS:
-                        if trans.lower() == choice:
-                            return trans
+                    pass
+                # Try to match by name
+                for trans in AVAILABLE_TRANSLATIONS:
+                    if trans.lower() == choice:
+                        return trans
                 return "web"  # Default fallback
             
             translation1 = parse_translation(trans1_choice) if trans1_choice else "web"
