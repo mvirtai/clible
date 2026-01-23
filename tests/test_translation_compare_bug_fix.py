@@ -25,9 +25,9 @@ class TestTranslationCompareBugFix:
         mock_click_prompt = mocker.patch('app.menus.analytics_menu.click.prompt')
         mock_click_prompt.side_effect = ['John', '3', '16', '1', '2']  # book, chapter, verses, trans1, trans2
         
-        # Mock input for translation selection
+        # Mock input for translation selection and continue prompt
         mock_input = mocker.patch('builtins.input')
-        mock_input.side_effect = ['1', '2']  # translation choices
+        mock_input.side_effect = ['1', '2', '']  # translation choices, then continue
         
         # Mock fetch_verse_comparison to return None (simulating failure)
         mock_fetch = mocker.patch('app.menus.analytics_menu.fetch_verse_comparison', return_value=None)
@@ -35,6 +35,7 @@ class TestTranslationCompareBugFix:
         # Mock console and other UI elements
         mock_console = mocker.patch('app.menus.analytics_menu.console')
         mock_render_book = mocker.patch('app.menus.analytics_menu.render_book_list')
+        mocker.patch('app.menus.analytics_menu.spacing_after_output')
         
         # Mock the menu to return 0 to exit
         mock_prompt_menu.side_effect = [2, 0]
@@ -49,10 +50,13 @@ class TestTranslationCompareBugFix:
         assert mock_fetch.called
         
         # Verify that input was NOT called for save prompt (since data is None)
-        # The input calls should only be for translation selection
-        save_prompts = [call for call in mock_input.call_args_list 
-                       if 'save' in str(call).lower() or 'Save' in str(call)]
+        # The input calls should only be for translation selection (2) and continue (1)
+        # Check that none of the input calls contain "save" in the prompt text
+        save_prompts = [args for args, _ in mock_input.call_args_list 
+                       if args and len(args) > 0 and 'save' in str(args[0]).lower()]
         assert len(save_prompts) == 0, "Save prompt should not be shown when fetch fails"
+        # Should have exactly 3 input calls: 2 for translation selection + 1 for continue
+        assert len(mock_input.call_args_list) == 3, "Should have 3 input calls (2 translations + continue)"
 
     def test_save_prompt_shown_when_fetch_succeeds(self, mocker: MockerFixture):
         """Test that save prompt IS shown when comparison fetch succeeds"""
@@ -63,9 +67,9 @@ class TestTranslationCompareBugFix:
         mock_click_prompt = mocker.patch('app.menus.analytics_menu.click.prompt')
         mock_click_prompt.side_effect = ['John', '3', '16']  # book, chapter, verses
         
-        # Mock input for translation selection and save choice
+        # Mock input for translation selection, save choice, and continue prompt
         mock_input = mocker.patch('builtins.input')
-        mock_input.side_effect = ['1', '2', 'n']  # translation choices, then 'n' for save
+        mock_input.side_effect = ['1', '2', 'n', '']  # translation choices, then 'n' for save, then continue
         
         # Mock successful comparison data
         mock_comparison_data = {
@@ -88,6 +92,14 @@ class TestTranslationCompareBugFix:
         mock_console = mocker.patch('app.menus.analytics_menu.console')
         mock_render_book = mocker.patch('app.menus.analytics_menu.render_book_list')
         mock_render_comparison = mocker.patch('app.menus.analytics_menu.render_side_by_side_comparison')
+        mocker.patch('app.menus.analytics_menu.spacing_after_output')
+        
+        # Mock calculate_translation_differences
+        mocker.patch('app.menus.analytics_menu.calculate_translation_differences', return_value={})
+        
+        # Mock AnalysisTracker
+        mock_tracker = Mock()
+        mocker.patch('app.menus.analytics_menu.AnalysisTracker', return_value=mock_tracker)
         
         # Mock AppState
         mock_state = Mock()
@@ -110,8 +122,10 @@ class TestTranslationCompareBugFix:
         mock_render_comparison.assert_called_once_with(mock_comparison_data)
         
         # Verify input was called for save prompt (should be in the calls)
-        # The last input call should be for save prompt
-        input_calls = [str(call) for call in mock_input.call_args_list]
-        # Should have translation selection calls and save prompt call
-        assert len(mock_input.call_args_list) >= 3  # At least 2 for translations + 1 for save
+        # Should have 4 input calls: 2 for translation selection + 1 for save + 1 for continue
+        assert len(mock_input.call_args_list) == 4, "Should have 4 input calls (2 translations + save + continue)"
+        # Check that one of the input calls contains "save" in the prompt text
+        save_prompts = [args for args, _ in mock_input.call_args_list 
+                       if args and len(args) > 0 and 'save' in str(args[0]).lower()]
+        assert len(save_prompts) == 1, "Save prompt should be shown when fetch succeeds"
 
