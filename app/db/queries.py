@@ -638,6 +638,8 @@ class QueryDB:
         if not reference:
             return None
         
+        logger.info(f"get_saved_query_by_reference: looking for '{reference}', translation: '{translation}'")
+        
         # Build query with optional translation filter
         sql = """
             SELECT
@@ -658,11 +660,15 @@ class QueryDB:
             sql += " AND LOWER(t.abbr) = ?"
             params = (reference, translation.lower())
         
+        logger.info(f"Executing SQL: {sql} with params: {params}")
         self.cur.execute(sql, params)
         query_row = self.cur.fetchone()
         
         if not query_row:
+            logger.info(f"No saved query found for '{reference}'")
             return None
+        
+        logger.info(f"Found saved query: id={query_row['id']}, reference={query_row['reference']}, translation_abbr={query_row.get('translation_abbr')}")
         
         # Get verses
         self.cur.execute(
@@ -712,6 +718,8 @@ class QueryDB:
         if not reference:
             return None
         
+        logger.info(f"get_cached_query_by_reference: looking for '{reference}', translation: '{translation}', session_id: '{session_id}'")
+        
         # Build query
         sql = """
             SELECT id, reference, verse_data, created_at, session_id
@@ -726,20 +734,26 @@ class QueryDB:
         
         sql += " ORDER BY created_at DESC LIMIT 1"
         
+        logger.info(f"Executing SQL: {sql} with params: {params}")
         self.cur.execute(sql, params)
         row = self.cur.fetchone()
         
         if not row:
+            logger.info(f"No cached query found for '{reference}'")
             return None
         
+        logger.info(f"Found cached query: id={row['id']}, reference={row['reference']}, session_id={row['session_id']}")
         verse_data = self._deserialize_verse_data(row["verse_data"])
         
         # Filter by translation if specified
         if translation:
             verse_translation = verse_data.get("translation_id", "").lower()
+            logger.info(f"Comparing translations: verse_translation='{verse_translation}', requested='{translation.lower()}'")
             if verse_translation != translation.lower():
+                logger.info(f"Translation mismatch, returning None")
                 return None
         
+        logger.info(f"Returning cached query data")
         return verse_data
 
     # ============================================================================

@@ -276,7 +276,9 @@ def fetch_by_reference(
     
     # Check cache before making API calls (skip for random verses)
     # Do this after handling 'all' cases so we have the final reference
+    logger.info(f"Cache check conditions: random={random}, book={book}, chapter={chapter}")
     if not random and book and chapter:
+        logger.info(f"Cache check conditions met, proceeding with cache lookup...")
         try:
             from app.db.queries import QueryDB
             from app.state import AppState
@@ -287,24 +289,36 @@ def fetch_by_reference(
             else:
                 reference = f"{book} {chapter}"
             
+            logger.info(f"Checking cache for reference: '{reference}', translation: '{translation}'")
+            
             # Get current session ID if available
             state = AppState()
             current_session_id = state.current_session_id if state else None
+            logger.info(f"Current session ID: {current_session_id}")
             
             with QueryDB() as db:
                 # First check saved queries
+                logger.info(f"Checking saved queries cache...")
                 cached_data = db.get_saved_query_by_reference(reference, translation)
                 if cached_data:
-                    logger.info(f"Using cached data from saved queries for {reference} ({translation})")
+                    logger.info(f"✓ Found in saved queries cache! Using cached data for {reference} ({translation})")
                     return cached_data
+                else:
+                    logger.info(f"✗ Not found in saved queries for '{reference}'")
                 
                 # Then check session cache (all sessions or current session)
+                logger.info(f"Checking session cache...")
                 cached_data = db.get_cached_query_by_reference(reference, translation, current_session_id)
                 if cached_data:
-                    logger.info(f"Using cached data from session cache for {reference} ({translation})")
+                    logger.info(f"✓ Found in session cache! Using cached data for {reference} ({translation})")
                     return cached_data
+                else:
+                    logger.info(f"✗ Not found in session cache for '{reference}'")
+                    logger.info(f"Proceeding with API call...")
         except Exception as e:
             logger.warning(f"Failed to check cache: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
             # Continue to API call if cache check fails
     
     # Fetch a random verse
@@ -328,6 +342,10 @@ def fetch_by_reference(
 
         data = response.json()
         logger.info(f"Response status: {response.status_code}")
+        
+        # Log the reference from API response for debugging
+        api_reference = data.get("reference", "")
+        logger.debug(f"API returned reference: '{api_reference}'")
 
         #Transform random verse response to match the expected structure
         if random and data:

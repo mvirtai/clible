@@ -7,6 +7,14 @@ from pathlib import Path
 from app.db.queries import QueryDB
 from app.ui import console, format_results
 
+# Minimal built-in stop word fallback to keep analysis working if file is missing
+DEFAULT_STOP_WORDS: set[str] = {
+    "the", "and", "of", "to", "in", "a", "that", "it", "is", "for", "on", "with",
+    "as", "was", "but", "be", "by", "he", "she", "they", "we", "you", "i", "at",
+    "from", "or", "this", "an", "not", "are", "have", "has", "had", "his", "her",
+    "their", "them", "him", "who", "what", "which", "when", "where", "why",
+}
+
 class WordFrequencyAnalyzer:
     """
     Analyzes word frequency in biblical verses.
@@ -48,31 +56,64 @@ class WordFrequencyAnalyzer:
         )
 
 
-    def __init__(self, pattern=r"[a-zA-Z']+"):
+    def __init__(self, pattern: str = r"[a-zA-Z']+", stop_words_path: str | Path | None = None):
         """
         Initialize the analyzer with a regex pattern for tokenization.
         
         Args:
             pattern: Regular expression pattern for matching words.
                     Default matches English words and contractions.
+            stop_words_path: Optional explicit path to stop words JSON file.
                     
-        Raises:
-            FileNotFoundError: If the stop words file is not found.
-            ValueError: If the stop words path exists but is not a file.
-            re.error: If the provided pattern is not a valid regex.
+        Behavior:
+            - Tries to load stop words from data/stop_words.json (repo root).
+            - If the file is missing or unreadable, falls back to a small
+              built-in default stop word set and logs a warning.
         """
         root = Path(__file__).resolve().parents[2]
-        path = Path("data/stop_words.json")
-        if not path.is_absolute():
-            path = root / path
-        
-        if not path.exists():
-            raise FileNotFoundError(f"Stop words file not found: {path}")
-        
-        if not path.is_file():
-            raise ValueError(f"Path exists but is not a file: {path}")
-        
-        self.stop_words = self.load_stop_words(path)
+        candidate_paths: list[Path] = []
+
+        if stop_words_path:
+            candidate = Path(stop_words_path)
+            candidate = candidate if candidate.is_absolute() else root / candidate
+            if candidate.exists() and candidate.is_file():
+                try:
+                    self.stop_words = self.load_stop_words(candidate)
+                    logger.info(f"Loaded stop words from {candidate}")
+                except (FileNotFoundError, json.JSONDecodeError, ValueError) as exc:
+                    logger.warning(f"Failed to load stop words from {candidate}: {exc}")
+                    logger.warning("Falling back to built-in default stop words.")
+                    self.stop_words = DEFAULT_STOP_WORDS
+            else:
+                logger.warning(f"Stop words file not found: {candidate}")
+                logger.warning("Falling back to built-in default stop words.")
+                self.stop_words = DEFAULT_STOP_WORDS
+        else:
+            candidate_paths: list[Path] = [
+                Path("data/stop_words.json"),
+                root / "data" / "stop_words.json",
+                Path.cwd() / "data" / "stop_words.json",
+            ]
+
+            resolved_path = None
+            for candidate in candidate_paths:
+                candidate = candidate if candidate.is_absolute() else root / candidate
+                if candidate.exists() and candidate.is_file():
+                    resolved_path = candidate
+                    break
+
+            if resolved_path:
+                try:
+                    self.stop_words = self.load_stop_words(resolved_path)
+                    logger.info(f"Loaded stop words from {resolved_path}")
+                except (FileNotFoundError, json.JSONDecodeError, ValueError) as exc:
+                    logger.warning(f"Failed to load stop words from {resolved_path}: {exc}")
+                    logger.warning("Falling back to built-in default stop words.")
+                    self.stop_words = DEFAULT_STOP_WORDS
+            else:
+                logger.warning("Stop words file not found. Using built-in defaults.")
+                self.stop_words = DEFAULT_STOP_WORDS
+
         self.pattern = re.compile(pattern)
         
 
