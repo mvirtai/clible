@@ -20,6 +20,8 @@ WORKDIR /workspace
 
 COPY --from=builder /workspace/.venv /workspace/.venv 
 COPY --from=builder /workspace/app /workspace/app
+COPY --from=builder /workspace/data /workspace/data
+COPY --from=builder /workspace/tests /workspace/tests
 
 ENV PATH="/workspace/.venv/bin:$PATH"
 
