@@ -1,4 +1,10 @@
-# app/menus/api_menu.py
+"""
+Fetch-from-API menu for clible.
+
+Handles verse/chapter fetch, random verse, multiple books, and saving
+queries to sessions.
+"""
+
 import click
 import time
 from loguru import logger

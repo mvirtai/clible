@@ -55,7 +55,7 @@ def tracker_with_user(temp_db):
     tracker = AnalysisTracker(
         user_id=user_id,
         session_id=None,
-        db_path=temp_db  # ← LISÄÄ TÄMÄ!
+        db_path=temp_db,
     )
     
     yield tracker, user_id, temp_db

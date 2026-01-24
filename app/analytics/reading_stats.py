@@ -1,2 +1,5 @@
-# This file is intentionally left empty.
-# Reading statistics functionality has been removed.
+"""
+Reading statistics module (stub).
+
+Functionality removed; kept for compatibility. See CHANGELOG.
+"""

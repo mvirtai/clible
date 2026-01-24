@@ -112,23 +112,20 @@ class TestValidateVerses:
             assert payload == verses_input.strip()
     
     @pytest.mark.parametrize("invalid_verses,expected_error", [
-        # Yksittäiset virheelliset
+        # Single invalid inputs
         ("0", f"Verse must be between {VERSES_MIN} and {VERSES_MAX}"),
         ("176", f"Verse must be between {VERSES_MIN} and {VERSES_MAX}"),
         ("abc", "Verse must be a number"),
-        
-        # Range-virheet
-        ("11-1", "Start verse must be less than or equal to end verse"),  
+        # Range errors
+        ("11-1", "Start verse must be less than or equal to end verse"),
         ("1-176", f"End verse must be between {VERSES_MIN} and {VERSES_MAX}"),
         ("0-5", f"Start verse must be between {VERSES_MIN} and {VERSES_MAX}"),
         ("1-abc", "Verse numbers must be integers"),
         ("abc-5", "Verse numbers must be integers"),
-        
-        # Monimutkaiset virheet
-        ("1-3,0", f"Verse must be between {VERSES_MIN} and {VERSES_MAX}"), 
-        ("1-3,11-1", "Start verse must be less than or equal to end verse"), 
-        
-        # Muoto-virheet
+        # Complex errors
+        ("1-3,0", f"Verse must be between {VERSES_MIN} and {VERSES_MAX}"),
+        ("1-3,11-1", "Start verse must be less than or equal to end verse"),
+        # Format errors
         ("1-2-3", "Invalid verse range format"),
         ("-", "Invalid verse range format"),
         ("", "Verse cannot be empty"),

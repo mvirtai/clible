@@ -1,4 +1,11 @@
-# app/db/queries.py
+"""
+SQLite database layer for clible.
+
+Provides QueryDB for queries, verses, sessions, users, and analysis history.
+Schema: core (translations, books, users), query (queries, verses),
+session (sessions, session_queries, session_queries_cache), analysis
+(analysis_history, analysis_results).
+"""
 
 import sqlite3
 from pathlib import Path

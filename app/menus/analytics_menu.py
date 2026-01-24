@@ -1,3 +1,10 @@
+"""
+Analytics menu for clible.
+
+Word search, translation comparison, word frequency, phrase analysis,
+session/book analysis, and analysis history.
+"""
+
 from app.ui import console, spacing_before_menu, spacing_after_output, render_book_list
 from app.menus.menu_utils import prompt_menu_choice, select_from_list, parse_selection_range, select_interactive
 from app.menus.menus import ANALYTICS_MENU

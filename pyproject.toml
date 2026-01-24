@@ -17,6 +17,7 @@ dependencies = [
     "plotext>=5.2.8",
     "matplotlib>=3.10.0",
     "simple-term-menu>=1.6.6",
+    "bump2version>=1.0.1",
 ]
 
 [build-system]

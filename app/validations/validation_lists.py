@@ -1,5 +1,9 @@
+"""
+Canonical list of Bible book names for validation.
+"""
+
 books_list = [
-    # old testament
+    # Old Testament
     "genesis",
     "exodus",
     "leviticus",
@@ -40,7 +44,7 @@ books_list = [
     "zechariah",
     "malachi",
 
-    # new testament
+    # New Testament
     "matthew",
     "mark",
     "luke",
