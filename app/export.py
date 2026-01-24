@@ -1,3 +1,10 @@
+"""
+Export utilities for clible.
+
+Formats verse data as Markdown and exports saved queries to files
+under data/exports/.
+"""
+
 from pathlib import Path
 import click
 from loguru import logger
@@ -5,7 +12,6 @@ from loguru import logger
 from app.db.queries import QueryDB
 from app.ui import console
 
-# Default export directory
 EXPORT_DIR = Path(__file__).resolve().parent.parent / "data" / "exports"
 
 def format_verse_data_markdown(data: dict) -> str:

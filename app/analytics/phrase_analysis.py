@@ -1,3 +1,9 @@
+"""
+Phrase analysis (bigrams, trigrams) for clible.
+
+Finds common word pairs and three-word phrases in saved verses.
+"""
+
 from collections import Counter
 from loguru import logger
 

@@ -1,3 +1,9 @@
+"""
+Analysis history menu for clible.
+
+View and filter saved analyses, toggle session filter, view specific results.
+"""
+
 import json
 
 from app.ui import console, spacing_before_menu, spacing_after_output

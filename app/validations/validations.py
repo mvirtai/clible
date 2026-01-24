@@ -1,3 +1,10 @@
+"""
+Input validation for clible CLI.
+
+Validates book references, chapter numbers, and verse ranges.
+Uses validation_lists for allowed books.
+"""
+
 from loguru import logger
 from app.validations.validation_lists import books_list
 

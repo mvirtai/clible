@@ -1,3 +1,9 @@
+"""
+Shared menu utilities for clible CLI.
+
+Menu rendering, choice prompting, list selection, and range parsing.
+"""
+
 from rich.padding import Padding
 from rich.text import Text
 from rich.panel import Panel

@@ -1,3 +1,9 @@
+"""
+Exports menu for clible.
+
+Handles export to Markdown and plain text for saved queries.
+"""
+
 from pathlib import Path
 
 from app.ui import console, spacing_before_menu, spacing_after_output

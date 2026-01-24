@@ -5,13 +5,16 @@ A command-line Bible study tool with advanced analytics, translation comparison,
 ## Features
 
 ### Core Functionality
+
 - **Fetch Bible Verses**: Retrieve verses, chapters, or random verses from Bible API
 - **Multiple Translations**: Support for WEB, KJV, BBE, ASV, YLT, and NIV translations
 - **Local Database**: Save queries to SQLite for offline access and analysis
 - **Session Management**: Organize your Bible studies into named sessions
 - **User Management**: Multi-user support with automatic authentication
+- **Versioning**: Semantic versioning with bump2version
 
 ### Analytics Tools
+
 - **Word Search**: Search for specific words across all saved verses with context highlighting
 - **Translation Comparison**: Side-by-side comparison of verses in two different translations
 - **Word Frequency Analysis**: Analyze word usage patterns with stop word filtering
@@ -20,6 +23,7 @@ A command-line Bible study tool with advanced analytics, translation comparison,
 - **Analysis History**: View and manage past analyses with full metadata tracking
 
 ### Export & Visualization
+
 - **Markdown Export**: Export verses and queries to formatted Markdown files
 - **Text Export**: Plain text export for maximum compatibility
 - **Rich Terminal UI**: Beautiful terminal interface with colors, tables, and panels
@@ -70,6 +74,7 @@ clible [OPTIONS]
 ```
 
 **Available options:**
+
 - `--user`, `-u`: Username for session (default: "default")
 - `--output`, `-o`: Output format - `text` or `json` (default: `text`)
 - `--book`, `-b`: Bible book name (e.g., `John`)
@@ -127,6 +132,7 @@ Compare the same verse(s) across two different Bible translations side-by-side:
 4. Easily identify translation differences and nuances
 
 **Supported Translations:**
+
 - `web` - World English Bible (default, public domain)
 - `kjv` - King James Version
 - `bbe` - Bible in Basic English
@@ -147,6 +153,7 @@ Organize your Bible studies into logical sessions:
 ### Analytics Features
 
 #### Word Frequency Analysis
+
 - Analyze word usage patterns in your saved verses
 - Automatic stop word filtering (common words like "the", "and", "is")
 - Vocabulary size calculation
@@ -154,18 +161,21 @@ Organize your Bible studies into logical sessions:
 - Results can be saved to analysis history
 
 #### Phrase Analysis
+
 - **Bigrams**: Find most common two-word phrases
 - **Trigrams**: Discover recurring three-word patterns
 - Useful for identifying key themes and repeated concepts
 - Filter by frequency threshold
 
 #### Word Search
+
 - Search across all saved verses for specific words
 - Results grouped by book with chapter and verse references
 - Context highlighting for search terms
 - Case-insensitive matching
 
 #### Analysis History
+
 - All analyses automatically saved with metadata
 - Track analysis type, scope, and timestamps
 - Associate analyses with sessions and users
@@ -184,12 +194,14 @@ After fetching verses, you'll be prompted to save the result. Saved queries incl
 ### Export Capabilities
 
 #### Markdown Export
+
 - Automatically generated filenames from verse references
 - Formatted with headers, translation information
 - Verse numbers and chapter divisions preserved
 - Saved to `data/exports/` directory
 
 #### Text Export
+
 - Plain text format for universal compatibility
 - Clean formatting without markup
 - Easy to share or import into other tools
@@ -244,20 +256,24 @@ clible/
 The application uses SQLite with the following tables:
 
 ### Core Tables
+
 - **translations**: Translation metadata (id, abbr, name, note)
 - **books**: Bible book names (id, name)
 - **users**: User accounts (id, name, created_at)
 
 ### Query Tables
+
 - **queries**: Query metadata (id, reference, created_at, translation_id)
 - **verses**: Verse data (id, query_id, book_id, chapter, verse, text, snippet)
 
 ### Session Tables
+
 - **sessions**: Study sessions (id, user_id, name, scope, created_at, updated_at)
 - **session_queries**: Links queries to sessions (session_id, query_id)
 - **session_queries_cache**: Temporary query cache (id, session_id, reference, verse_data)
 
 ### Analysis Tables
+
 - **analysis_history**: Analysis metadata (id, user_id, session_id, analysis_type, scope, timestamp)
 - **analysis_results**: Analysis output data (id, analysis_id, result_type, result_data, chart_path)
 
@@ -313,7 +329,7 @@ The project follows these conventions:
 - **Constants**: UPPERCASE_WITH_UNDERSCORES
 - **Functions/Methods**: lowercase_with_underscores
 - **Classes**: PascalCase
-- **Private methods**: _leading_underscore
+- **Private methods**: \_leading_underscore
 - **Database IDs**: UUIDs for all primary keys
 - **Timestamps**: ISO 8601 format via SQLite CURRENT_TIMESTAMP
 
@@ -344,11 +360,13 @@ Contributions are welcome! Please follow these guidelines:
 
 Detailed documentation is available in the `docs/` directory:
 
+- [CHANGELOG.md](CHANGELOG.md) – Version history and release notes
 - PR descriptions for major features
 - Analysis tracker logic and integration guides
 - Session management documentation
 - Status bar implementation details
 - Refactoring descriptions and conventions
+- [Conventions audit](docs/CONVENTIONS_AUDIT.md) – Naming, commenting, docstrings
 
 ## Future Enhancements
 
@@ -365,7 +383,7 @@ Potential improvements for future releases:
 
 ## License
 
-[Add license information here]
+See [LICENSE](LICENSE) file in the repository.
 
 ## Acknowledgments
 

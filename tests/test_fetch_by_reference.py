@@ -70,20 +70,15 @@ class TestFetchByReference:
     requests.exceptions.HTTPError,
 ])
     def test_fetch_by_reference_handles_errors(self, mocker, exception_class):
-        # HTTPError tarvitsee erityiskohtelun, koska se käyttää response-objektia
+        # HTTPError requires special handling because it uses a response object
         if exception_class == requests.exceptions.HTTPError:
-            # Luodaan mock response HTTPError:lle
             mock_response = Mock()
             mock_response.status_code = 404
             mock_response.text = "Not Found"
-            
-            # Luodaan HTTPError mock-response:lla
             http_error = requests.exceptions.HTTPError()
             http_error.response = mock_response
-            
             mocker.patch('app.api.requests.get', side_effect=http_error)
         else:
-            # Muut poikkeukset toimivat normaalisti
             mocker.patch('app.api.requests.get', side_effect=exception_class())
         
         result = fetch_by_reference("John", "3", "16", use_mock=False)

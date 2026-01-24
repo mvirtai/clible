@@ -1,11 +1,18 @@
+"""
+Status bar component for clible.
+
+Displays current user and active session in the terminal.
+"""
+
 from app.db.queries import QueryDB
 from app.state import AppState
 from app.ui import console
 from rich.panel import Panel
 from rich.align import Align
 
+
 class StatusBar:
-    """Status bar that display the current session and user information."""
+    """Status bar that displays the current session and user information."""
     def __init__(self):
         self.current_session = None
         self.current_user = None

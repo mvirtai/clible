@@ -1,3 +1,10 @@
+"""
+Application-level state singleton for clible.
+
+Holds current_user_id and current_session_id shared across menus and components.
+"""
+
+
 class AppState:
     """
     Singleton class that holds application-level state.

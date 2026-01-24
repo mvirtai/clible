@@ -1,3 +1,10 @@
+"""
+Word frequency analysis for clible.
+
+Tokenizes verses, filters stop words, computes vocabulary size and
+type-token ratio. Uses data/stop_words.json with built-in fallback.
+"""
+
 from collections import Counter
 from loguru import logger
 import re
@@ -7,7 +14,6 @@ from pathlib import Path
 from app.db.queries import QueryDB
 from app.ui import console, format_results
 
-# Minimal built-in stop word fallback to keep analysis working if file is missing
 DEFAULT_STOP_WORDS: set[str] = {
     "the", "and", "of", "to", "in", "a", "that", "it", "is", "for", "on", "with",
     "as", "was", "but", "be", "by", "he", "she", "they", "we", "you", "i", "at",

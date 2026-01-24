@@ -1,3 +1,10 @@
+"""
+Menu definitions for clible CLI.
+
+Constants: MAIN_MENU, API_MENU, ANALYTICS_MENU, EXPORTS_MENU,
+SESSION_MENU, HISTORY_MENU. Used by menu_utils and menu runners.
+"""
+
 MAIN_MENU = {
     "title": "=== clible menu ===",
     "options": [
@@ -26,7 +33,6 @@ ANALYTICS_MENU = {
     "options": [
         "Search word",
         "Translation comparison",
-        "--------------------------------",
         "Word frequency analysis",
         "Phrase analysis",
         "Analyze current session",

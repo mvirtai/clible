@@ -1,3 +1,10 @@
+"""
+CLI entry point and main menu loop for clible.
+
+Defines Click-based CLI, run_main_menu loop, and routing to API, analytics,
+exports, and session menus.
+"""
+
 import click
 
 from app.ui import console, spacing_before_menu, spacing_after_output

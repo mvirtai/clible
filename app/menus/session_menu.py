@@ -1,3 +1,9 @@
+"""
+Session management menu for clible.
+
+Start, resume, end, save, list, delete sessions; clear session cache.
+"""
+
 from app.ui import console, spacing_before_menu, spacing_after_output
 from app.menus.menu_utils import prompt_menu_choice, select_from_list
 from app.menus.menus import SESSION_MENU

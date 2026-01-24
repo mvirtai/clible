@@ -1,3 +1,10 @@
+"""
+Bible API integration for clible.
+
+Fetches verses, chapters, and metadata from bible-api.com. Handles rate limiting,
+caching (max chapter/verse), and verse-data cache lookups before API calls.
+"""
+
 import json
 import time
 import requests
