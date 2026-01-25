@@ -5,14 +5,16 @@ This module contains functions for rendering output to the terminal using Rich,
 including formatting verses, queries, search results, and spacing utilities.
 """
 
-from app.api import fetch_book_list
-
-from rich.console import Console, Group
-from rich.text import Text
-from rich.panel import Panel
-from rich.padding import Padding
 from collections import Counter
 from typing import TypedDict
+
+from rich.console import Console, Group
+from rich.padding import Padding
+from rich.panel import Panel
+from rich.text import Text
+
+from app.api import fetch_book_list
+
 
 class VerseMatch(TypedDict):
     book: str
@@ -20,26 +22,25 @@ class VerseMatch(TypedDict):
     verse: int
     text: str
 
-# Global console instance for terminal output
+
 console = Console()
+
 
 def render_book_list() -> None:
     """Render a list of books from the API"""
     books = fetch_book_list()
     for book in books:
-        # Print book ID in green and book name in cyan, reversing original color scheme
         console.print(f"  [bold green][{book['id']} [/bold green] [bold cyan]{book['name']}[/bold cyan]")
     spacing_after_output()
-
 
 
 def render_text_output(data: dict) -> Panel:
     """
     Render verse data as a Rich Panel with formatted verses.
-    
+
     Args:
         data: Dictionary containing 'verses', 'reference', and 'translation_name'
-        
+
     Returns:
         A Rich Panel object ready to be printed
     """
@@ -53,26 +54,26 @@ def render_text_output(data: dict) -> Panel:
         line.append("   ")
         line.append(text)
         body_lines.append(line)
-    
+
     body = Group(*body_lines)
-    
+
     reference = data.get('reference', 'Unknown reference')
     translation_name = data.get('translation_name', '')
-    
+
     return Panel(Padding(
-        body, (2, 2)), 
-        title=f"[bold magenta]{reference}[/bold magenta]", 
-        subtitle=f"[italic cyan]{translation_name}[/italic cyan]", 
+        body, (2, 2)),
+        title=f"[bold magenta]{reference}[/bold magenta]",
+        subtitle=f"[italic cyan]{translation_name}[/italic cyan]",
         expand=False)
 
 
 def format_queries(queries: list[dict]) -> list[str]:
     """
     Format a list of query dictionaries into displayable strings.
-    
+
     Args:
         queries: List of query dictionaries with 'id', 'reference', 'verse_count', 'created_at'
-        
+
     Returns:
         List of formatted query strings ready for display
     """
@@ -81,7 +82,7 @@ def format_queries(queries: list[dict]) -> list[str]:
     if queries:
         console.print("[bold]Saved Queries[/bold]")
         spacing_after_output()
-        
+
         for q in queries:
             query_id = q["id"]
             created_at = q["created_at"]
@@ -92,14 +93,14 @@ def format_queries(queries: list[dict]) -> list[str]:
     else:
         console.print("[dim]No saved queries found.[/dim]")
         spacing_after_output()
-    
+
     return query_list
 
 
 def render_search_results_info(data: list[VerseMatch], search_word: str) -> None:
     """
     Render summary information about search results.
-    
+
     Args:
         data: List of verse match dictionaries
         search_word: The word that was searched for
@@ -115,10 +116,10 @@ def render_search_results_info(data: list[VerseMatch], search_word: str) -> None
         info_str = f'Found {total_count} matches for the word "{search_word}":'
     else:
         info_str = f'No matches found for the word "{search_word}"'
-    
+
     console.print(info_str)
-    spacing_after_output() 
-    
+    spacing_after_output()
+
     for book, count in book_counts.most_common():
         console.print(f"  • {book}: {count}", markup=False)
 
@@ -126,11 +127,11 @@ def render_search_results_info(data: list[VerseMatch], search_word: str) -> None
 def highlight_word_in_text(text: str, search_word: str) -> str:
     """
     Highlight occurrences of a search word in text using Rich markup.
-    
+
     Args:
         text: The text to search in
         search_word: The word to highlight
-        
+
     Returns:
         Text string with Rich markup highlighting the search word
     """
@@ -149,23 +150,22 @@ def highlight_word_in_text(text: str, search_word: str) -> str:
 def format_ref(book: str, chapter: str, verses: str) -> str:
     """
     Format a Bible reference string.
-    
+
     Args:
         book: Book name
         chapter: Chapter number
         verses: Verse number(s)
-        
+
     Returns:
         Formatted reference string (e.g., "John 3:16")
     """
     return f"{book.capitalize()} {chapter}:{verses}"
 
 
-
 def format_word_frequency_analysis(results: list[tuple[str, int]], show_header: bool = True) -> None:
     """
     Format a list of word frequency analysis results into displayable strings.
-    
+
     Args:
         results: List of tuples containing word and frequency
         show_header: Whether to show the header (default: True)
@@ -174,23 +174,21 @@ def format_word_frequency_analysis(results: list[tuple[str, int]], show_header: 
         spacing_between_sections()
         console.print("[bold]Word Frequency Analysis[/bold]")
         spacing_after_output()
-    
+
     if results:
         for word, frequency in results:
             console.print(f"  [bold cyan]{word:15}[/bold cyan] [dim]→[/dim] [bold yellow]{frequency:3}[/bold yellow]")
     else:
         console.print("[dim]No word frequency analysis results found.[/dim]")
-    
+
     if show_header:
         spacing_after_output()
-
-
 
 
 def format_vocabulary_info(info: dict, show_header: bool = True) -> None:
     """
     Format a dictionary of vocabulary information into displayable strings.
-    
+
     Args:
         info: Dictionary containing vocabulary information
         show_header: Whether to show the header (default: True)
@@ -199,15 +197,14 @@ def format_vocabulary_info(info: dict, show_header: bool = True) -> None:
         spacing_between_sections()
         console.print("[bold]Vocabulary Statistics[/bold]")
         spacing_after_output()
-    
+
     if info:
-        # Format keys to be more readable
         key_labels = {
             "total_tokens": "Total Tokens",
             "vocabulary_size": "Unique Words",
             "type_token_ratio": "Type-Token Ratio"
         }
-        
+
         for key, value in info.items():
             label = key_labels.get(key, key.replace("_", " ").title())
             if key == "type_token_ratio":
@@ -216,14 +213,15 @@ def format_vocabulary_info(info: dict, show_header: bool = True) -> None:
                 console.print(f"  [bold cyan]{label:20}[/bold cyan] [dim]→[/dim] [bold yellow]{value}[/bold yellow]")
     else:
         console.print("[dim]No vocabulary information found.[/dim]")
-    
+
     if show_header:
-        spacing_after_output()  
+        spacing_after_output()
+
 
 def format_results(results: list[tuple[str, int]], info: dict) -> None:
     """
     Format a list of word frequency analysis results and vocabulary information into displayable strings.
-    
+
     Args:
         results: List of tuples containing word and frequency
         info: Dictionary containing vocabulary information
@@ -238,7 +236,7 @@ def format_results(results: list[tuple[str, int]], info: dict) -> None:
 def format_bigrams(bigrams: list[tuple[str, int]], show_header: bool = True) -> None:
     """
     Format bigram analysis results into displayable strings.
-    
+
     Args:
         bigrams: List of tuples containing (bigram_phrase, count)
         show_header: Whether to show the header (default: True)
@@ -247,13 +245,13 @@ def format_bigrams(bigrams: list[tuple[str, int]], show_header: bool = True) -> 
         spacing_between_sections()
         console.print("[bold]Top Bigrams (Word Pairs)[/bold]")
         spacing_after_output()
-    
+
     if bigrams:
         for phrase, frequency in bigrams:
             console.print(f"  [bold cyan]{phrase:30}[/bold cyan] [dim]→[/dim] [bold yellow]{frequency:3}[/bold yellow]")
     else:
         console.print("[dim]No bigrams found.[/dim]")
-    
+
     if show_header:
         spacing_after_output()
 
@@ -261,7 +259,7 @@ def format_bigrams(bigrams: list[tuple[str, int]], show_header: bool = True) -> 
 def format_trigrams(trigrams: list[tuple[str, int]], show_header: bool = True) -> None:
     """
     Format trigram analysis results into displayable strings.
-    
+
     Args:
         trigrams: List of tuples containing (trigram_phrase, count)
         show_header: Whether to show the header (default: True)
@@ -270,24 +268,21 @@ def format_trigrams(trigrams: list[tuple[str, int]], show_header: bool = True) -
         spacing_between_sections()
         console.print("[bold]Top Trigrams (Three-Word Phrases)[/bold]")
         spacing_after_output()
-    
+
     if trigrams:
         for phrase, frequency in trigrams:
             console.print(f"  [bold cyan]{phrase:40}[/bold cyan] [dim]→[/dim] [bold yellow]{frequency:3}[/bold yellow]")
     else:
         console.print("[dim]No trigrams found.[/dim]")
-    
+
     if show_header:
         spacing_after_output()
 
 
-
-# Spacing utilities
-
 def add_vertical_spacing(lines: int = 1) -> None:
     """
     Add vertical spacing to the console output.
-    
+
     Args:
         lines: Number of blank lines to add (max 2)
     """
@@ -307,7 +302,6 @@ def spacing_after_output() -> None:
 def spacing_between_sections() -> None:
     """Add spacing between major sections."""
     add_vertical_spacing(2)
-
 
 
 if __name__ == "__main__":

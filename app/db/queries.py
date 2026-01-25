@@ -7,12 +7,13 @@ session (sessions, session_queries, session_queries_cache), analysis
 (analysis_history, analysis_results).
 """
 
-import sqlite3
-from pathlib import Path
-from datetime import datetime
-from textwrap import shorten
-import uuid
 import json
+import sqlite3
+import uuid
+from datetime import datetime
+from pathlib import Path
+from textwrap import shorten
+
 from loguru import logger
 
 from app.ui import console
@@ -20,33 +21,14 @@ from app.ui import console
 DB_PATH = Path(__file__).resolve().parent / "clible.db"
 
 
-# ============================================================================
-#   DATABASE SCHEMA
-# ============================================================================
-#
-# Table dependency order (for creation):
-#   1. Core tables (no dependencies):
-#      - translations
-#      - books
-#      - users
-#
-#   2. Query tables (depend on translations, books):
-#      - queries (depends on translations)
-#      - verses (depends on queries, books)
-#
-#   3. User/Session tables (depend on users, queries):
-#      - sessions (depends on users)
-#      - session_queries (depends on sessions, queries)
-#      - session_queries_cache (no foreign keys, but related to sessions)
-#
-#   4. Analysis tables (depend on users, sessions):
-#      - analysis_history (depends on users, sessions)
-#      - analysis_results (depends on analysis_history)
-#
-# ============================================================================
-
-
 class QueryDB:
+    """
+    Database interface for clible.
+
+    Manages SQLite database operations for queries, verses, sessions, users,
+    and analysis history. Provides context manager support for automatic cleanup.
+    """
+
     def __init__(self, db_path: Path = DB_PATH):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
@@ -62,7 +44,7 @@ class QueryDB:
     def _create_all_tables(self):
         """
         Create all database tables in correct dependency order.
-        
+
         Tables are created in this order to respect foreign key constraints:
         1. Core independent tables
         2. Tables depending on core tables
@@ -77,7 +59,6 @@ class QueryDB:
     def _create_core_tables(self):
         """Create core independent tables (no foreign key dependencies)."""
         self.cur.executescript("""
-            -- Translation metadata
             CREATE TABLE IF NOT EXISTS translations (
                 id TEXT PRIMARY KEY,
                 abbr TEXT NOT NULL UNIQUE,
@@ -85,20 +66,17 @@ class QueryDB:
                 note TEXT NULL
             );
 
-            -- Book names
             CREATE TABLE IF NOT EXISTS books (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL UNIQUE
             );
 
-            -- User accounts
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
-            -- Cache for max chapters per book and translation
             CREATE TABLE IF NOT EXISTS book_chapter_cache (
                 book_name TEXT NOT NULL,
                 translation TEXT NOT NULL,
@@ -107,7 +85,6 @@ class QueryDB:
                 PRIMARY KEY (book_name, translation)
             );
 
-            -- Cache for max verses per book, chapter, and translation
             CREATE TABLE IF NOT EXISTS book_verse_cache (
                 book_name TEXT NOT NULL,
                 chapter INTEGER NOT NULL,
@@ -121,7 +98,6 @@ class QueryDB:
     def _create_query_tables(self):
         """Create tables for storing queries and verses."""
         self.cur.executescript("""
-            -- Query metadata
             CREATE TABLE IF NOT EXISTS queries (
                 id TEXT PRIMARY KEY,
                 reference TEXT NOT NULL,
@@ -130,11 +106,10 @@ class QueryDB:
                 FOREIGN KEY (translation_id) REFERENCES translations(id)
             );
 
-            -- Individual verses
             CREATE TABLE IF NOT EXISTS verses (
                 id TEXT PRIMARY KEY,
                 query_id TEXT NOT NULL,
-                book_id TEXT NOT NULL, 
+                book_id TEXT NOT NULL,
                 chapter INTEGER NOT NULL,
                 verse INTEGER NOT NULL,
                 text TEXT NOT NULL,
@@ -147,7 +122,6 @@ class QueryDB:
     def _create_session_tables(self):
         """Create tables for user sessions and session-query relationships."""
         self.cur.executescript("""
-            -- User sessions
             CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -158,7 +132,6 @@ class QueryDB:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
-            -- Junction table: links sessions to saved queries
             CREATE TABLE IF NOT EXISTS session_queries (
                 session_id TEXT NOT NULL,
                 query_id TEXT NOT NULL,
@@ -167,7 +140,6 @@ class QueryDB:
                 FOREIGN KEY (query_id) REFERENCES queries(id)
             );
 
-            -- Cache table: stores temporary session queries (no foreign keys)
             CREATE TABLE IF NOT EXISTS session_queries_cache (
                 id TEXT PRIMARY KEY,
                 session_id TEXT NOT NULL,
@@ -180,7 +152,6 @@ class QueryDB:
     def _create_analysis_tables(self):
         """Create tables for storing analysis history and results."""
         self.cur.executescript("""
-            -- Analysis history metadata
             CREATE TABLE IF NOT EXISTS analysis_history (
                 id TEXT PRIMARY KEY,
                 user_id TEXT,
@@ -194,8 +165,7 @@ class QueryDB:
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 FOREIGN KEY (session_id) REFERENCES sessions(id)
             );
-            
-            -- Analysis results (actual data)
+
             CREATE TABLE IF NOT EXISTS analysis_results (
                 id TEXT PRIMARY KEY,
                 analysis_id TEXT NOT NULL,
@@ -205,8 +175,7 @@ class QueryDB:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (analysis_id) REFERENCES analysis_history(id)
             );
-            
-            -- Indexes for faster queries
+
             CREATE INDEX IF NOT EXISTS idx_analysis_user ON analysis_history(user_id);
             CREATE INDEX IF NOT EXISTS idx_analysis_type ON analysis_history(analysis_type);
             CREATE INDEX IF NOT EXISTS idx_analysis_session ON analysis_history(session_id);
@@ -214,26 +183,19 @@ class QueryDB:
             CREATE INDEX IF NOT EXISTS idx_results_analysis ON analysis_results(analysis_id);
         """)
 
-    # ============================================================================
-    #   DATABASE RESET
-    # ============================================================================
-
     def _reset_database(self):
         """
         Reset entire database by dropping all tables.
-        
+
         Tables are dropped in reverse dependency order:
         - Child tables (with foreign keys) first
         - Parent tables last
         """
         self.cur.executescript("""
-            -- Drop child tables first (those with foreign keys)
             DROP TABLE IF EXISTS analysis_results;
             DROP TABLE IF EXISTS session_queries;
             DROP TABLE IF EXISTS session_queries_cache;
             DROP TABLE IF EXISTS verses;
-            
-            -- Drop parent tables
             DROP TABLE IF EXISTS analysis_history;
             DROP TABLE IF EXISTS sessions;
             DROP TABLE IF EXISTS queries;
@@ -241,13 +203,8 @@ class QueryDB:
             DROP TABLE IF EXISTS translations;
             DROP TABLE IF EXISTS users;
         """)
-        # Recreate tables after reset
         self._create_all_tables()
         self.conn.commit()
-
-    # ============================================================================
-    #   HELPER METHODS
-    # ============================================================================
 
     def _ensure_book(self, book_name: str) -> str:
         """Get or create a book by name. Returns book ID."""
@@ -272,10 +229,6 @@ class QueryDB:
             return json.loads(data_text)
         except (json.JSONDecodeError, TypeError):
             return {}
-
-    # ============================================================================
-    #   USER OPERATIONS
-    # ============================================================================
 
     def create_user(self, name: str) -> str | None:
         """Create a new user. Returns user ID or None if failed."""
@@ -314,8 +267,8 @@ class QueryDB:
     def list_users(self) -> list[dict]:
         """List all users, ordered by creation date (newest first)."""
         self.cur.execute("""
-        SELECT u.id, u.name, u.created_at 
-        FROM users u 
+        SELECT u.id, u.name, u.created_at
+        FROM users u
         ORDER BY u.created_at DESC
         LIMIT 100;
         """)
@@ -325,10 +278,10 @@ class QueryDB:
     def get_or_create_default_user(self, user_name: str = "default") -> str:
         """
         Get or create a user by name.
-        
+
         Args:
             user_name: Username to get or create (default: "default")
-            
+
         Returns:
             User ID if successful, None if failed
         """
@@ -342,10 +295,6 @@ class QueryDB:
             else:
                 logger.error(f"Failed to create user: {user_name}")
                 return None
-
-    # ============================================================================
-    #   SESSION OPERATIONS
-    # ============================================================================
 
     def create_session(self, user_id: str, name: str, scope: str, is_temporary: bool = False) -> str | None:
         """Create a new session. Returns session ID or None if failed."""
@@ -392,7 +341,7 @@ class QueryDB:
         """Link a query to a session. Silently ignores if already linked."""
         if not (session_id and query_id):
             return
-        
+
         try:
             self.cur.execute(
                 "INSERT INTO session_queries (session_id, query_id) VALUES (?, ?)",
@@ -485,24 +434,17 @@ class QueryDB:
         self.conn.commit()
         return self.cur.rowcount > 0
 
-    # ============================================================================
-    #   QUERY OPERATIONS
-    # ============================================================================
-
     def save_query(self, verse_data: dict) -> str:
         """Save a query with its verses to the database. Returns query ID."""
         reference = verse_data.get("reference", "").strip()
 
-        # 1. Save query metadata
         query_id = str(uuid.uuid4())[:8]
-        
-        # Handle translation metadata
+
         translation_id = None
         translation_name = verse_data.get("translation_name")
         translation_abbr = verse_data.get("translation_id")
 
         if translation_name or translation_abbr:
-            # Check if translation already exists
             self.cur.execute(
                 "SELECT id FROM translations WHERE name = ? AND abbr = ?",
                 (translation_name, translation_abbr)
@@ -518,7 +460,6 @@ class QueryDB:
                 )
                 self.conn.commit()
 
-        # Save query with translation_id
         self.cur.execute(
             """
             INSERT INTO queries (id, reference, translation_id) VALUES (?, ?, ?)
@@ -526,9 +467,8 @@ class QueryDB:
         )
         self.conn.commit()
 
-        # 2. Extract and save verses
         verses = verse_data.get("verses", [])
- 
+
         for v in verses:
             book_name = v.get("book_name")
             chapter = v.get("chapter")
@@ -538,7 +478,7 @@ class QueryDB:
             book_id = self._ensure_book(book_name)
 
             snippet = shorten(text.replace("\n", " "), width=160, placeholder="...")
-            
+
             verse_id = str(uuid.uuid4())[:8]
             self.cur.execute(
                 """
@@ -569,7 +509,6 @@ class QueryDB:
 
     def get_single_saved_query(self, query_id: str) -> dict | None:
         """Get a single query with all its verses and translation info."""
-        # 1. Get query metadata with translation info
         self.cur.execute(
             """
             SELECT
@@ -590,8 +529,7 @@ class QueryDB:
 
         if not query_row:
             return None
-        
-        # 2. Get verses
+
         self.cur.execute(
             """
             SELECT
@@ -607,21 +545,19 @@ class QueryDB:
         )
         verses = [dict(row) for row in self.cur.fetchall()]
 
-        # 3. Format the dictionary to match the structure of API-fetched data
         result = {
             "id": query_row["id"],
             "reference": query_row["reference"],
             "created_at": query_row["created_at"],
             "verses": verses,
         }
-        
-        # Add translation info if it exists
+
         if query_row["translation_id"]:
             result["translation_id"] = query_row["translation_abbr"]
             result["translation_name"] = query_row["translation_name"]
             if query_row["translation_note"]:
                 result["translation_note"] = query_row["translation_note"]
-        
+
         return result
 
     def get_verses_by_query_id(self, query_id: str) -> list[dict]:
@@ -634,20 +570,19 @@ class QueryDB:
     def get_saved_query_by_reference(self, reference: str, translation: str | None = None) -> dict | None:
         """
         Get a saved query by reference and optionally by translation.
-        
+
         Args:
             reference: Verse reference string (e.g., "John 3:16")
             translation: Optional translation identifier (e.g., "web")
-            
+
         Returns:
             Query data dictionary matching the structure of API-fetched data, or None if not found
         """
         if not reference:
             return None
-        
+
         logger.info(f"get_saved_query_by_reference: looking for '{reference}', translation: '{translation}'")
-        
-        # Build query with optional translation filter
+
         sql = """
             SELECT
                 q.id,
@@ -662,22 +597,21 @@ class QueryDB:
             WHERE q.reference = ?
         """
         params: tuple = (reference,)
-        
+
         if translation:
             sql += " AND LOWER(t.abbr) = ?"
             params = (reference, translation.lower())
-        
+
         logger.info(f"Executing SQL: {sql} with params: {params}")
         self.cur.execute(sql, params)
         query_row = self.cur.fetchone()
-        
+
         if not query_row:
             logger.info(f"No saved query found for '{reference}'")
             return None
-        
+
         logger.info(f"Found saved query: id={query_row['id']}, reference={query_row['reference']}, translation_abbr={query_row.get('translation_abbr')}")
-        
-        # Get verses
+
         self.cur.execute(
             """
             SELECT
@@ -692,80 +626,72 @@ class QueryDB:
             """, (query_row["id"],)
         )
         verses = [dict(row) for row in self.cur.fetchall()]
-        
-        # Format the dictionary to match the structure of API-fetched data
+
         result = {
             "reference": query_row["reference"],
             "verses": verses,
         }
-        
-        # Add translation info if it exists
+
         if query_row["translation_id"]:
             result["translation_id"] = query_row["translation_abbr"]
             result["translation_name"] = query_row["translation_name"]
             if query_row["translation_note"]:
                 result["translation_note"] = query_row["translation_note"]
-        
+
         return result
 
     def get_cached_query_by_reference(self, reference: str, translation: str | None = None, session_id: str | None = None) -> dict | None:
         """
         Get a cached query from session cache by reference and optionally by translation.
-        
+
         Checks all session caches if session_id is not provided, or only the specified session.
-        
+
         Args:
             reference: Verse reference string (e.g., "John 3:16")
             translation: Optional translation identifier (e.g., "web")
             session_id: Optional session ID to limit search to specific session
-            
+
         Returns:
             Cached query data dictionary, or None if not found
         """
         if not reference:
             return None
-        
+
         logger.info(f"get_cached_query_by_reference: looking for '{reference}', translation: '{translation}', session_id: '{session_id}'")
-        
-        # Build query
+
         sql = """
             SELECT id, reference, verse_data, created_at, session_id
             FROM session_queries_cache
             WHERE reference = ?
         """
         params: tuple = (reference,)
-        
+
         if session_id:
             sql += " AND session_id = ?"
             params = (reference, session_id)
-        
+
         sql += " ORDER BY created_at DESC LIMIT 1"
-        
+
         logger.info(f"Executing SQL: {sql} with params: {params}")
         self.cur.execute(sql, params)
         row = self.cur.fetchone()
-        
+
         if not row:
             logger.info(f"No cached query found for '{reference}'")
             return None
-        
+
         logger.info(f"Found cached query: id={row['id']}, reference={row['reference']}, session_id={row['session_id']}")
         verse_data = self._deserialize_verse_data(row["verse_data"])
-        
-        # Filter by translation if specified
+
         if translation:
             verse_translation = verse_data.get("translation_id", "").lower()
             logger.info(f"Comparing translations: verse_translation='{verse_translation}', requested='{translation.lower()}'")
             if verse_translation != translation.lower():
                 logger.info(f"Translation mismatch, returning None")
                 return None
-        
+
         logger.info(f"Returning cached query data")
         return verse_data
-
-    # ============================================================================
-    #   ANALYTICS OPERATIONS
-    # ============================================================================
 
     def search_word(self, word: str) -> list[dict]:
         """Search for a word in all verses."""
@@ -775,7 +701,7 @@ class QueryDB:
             """
             SELECT
                 b.name as book,
-                v.chapter,  
+                v.chapter,
                 v.verse,
                 v.text
             FROM verses v
@@ -785,7 +711,7 @@ class QueryDB:
             """,
             (pattern,),
         )
-        
+
         return [dict(row) for row in self.cur.fetchall()]
 
     def get_total_verse_count(self) -> int:
@@ -845,7 +771,7 @@ class QueryDB:
         """Get all verses for a specific book name."""
         self.cur.execute(
             """
-            SELECT 
+            SELECT
                 b.name as book_name,
                 v.chapter,
                 v.verse,
@@ -858,12 +784,11 @@ class QueryDB:
             (book_name,)
         )
         return [dict(row) for row in self.cur.fetchall()]
-    
+
     def get_all_verses_from_session(self, session_id: str) -> list[dict]:
         """Get all verses from all queries in a session (both saved and cached)."""
         all_verses = []
-        
-        # Get verses from saved queries
+
         self.cur.execute(
             """
             SELECT DISTINCT v.id, b.name as book_name, v.chapter, v.verse, v.text
@@ -876,21 +801,20 @@ class QueryDB:
             (session_id,)
         )
         all_verses.extend([dict(row) for row in self.cur.fetchall()])
-        
-        # Get verses from cached queries
+
         cached = self.get_cached_queries_for_session(session_id)
         for cached_query in cached:
             verse_data = cached_query.get('verse_data', {})
             verses = verse_data.get('verses', [])
             all_verses.extend(verses)
-        
+
         return all_verses
-    
+
     def get_verses_from_multiple_queries(self, query_ids: list[str]) -> list[dict]:
         """Get all verses from multiple query IDs."""
         if not query_ids:
             return []
-        
+
         placeholders = ','.join('?' * len(query_ids))
         self.cur.execute(
             f"""
@@ -908,18 +832,14 @@ class QueryDB:
         )
         return [dict(row) for row in self.cur.fetchall()]
 
-    # ============================================================================
-    #   CACHE OPERATIONS
-    # ============================================================================
-
     def get_cached_max_chapter(self, book_name: str, translation: str) -> int | None:
         """
         Get cached max chapter for a book and translation.
-        
+
         Args:
             book_name: Name of the book (e.g., "John")
             translation: Translation identifier (e.g., "web")
-            
+
         Returns:
             Cached max chapter number, or None if not found
         """
@@ -936,7 +856,7 @@ class QueryDB:
     def set_cached_max_chapter(self, book_name: str, translation: str, max_chapter: int) -> None:
         """
         Cache max chapter for a book and translation.
-        
+
         Args:
             book_name: Name of the book (e.g., "John")
             translation: Translation identifier (e.g., "web")
@@ -955,12 +875,12 @@ class QueryDB:
     def get_cached_max_verse(self, book_name: str, chapter: int, translation: str) -> int | None:
         """
         Get cached max verse for a book, chapter, and translation.
-        
+
         Args:
             book_name: Name of the book (e.g., "John")
             chapter: Chapter number
             translation: Translation identifier (e.g., "web")
-            
+
         Returns:
             Cached max verse number, or None if not found
         """
@@ -977,7 +897,7 @@ class QueryDB:
     def set_cached_max_verse(self, book_name: str, chapter: int, translation: str, max_verse: int) -> None:
         """
         Cache max verse for a book, chapter, and translation.
-        
+
         Args:
             book_name: Name of the book (e.g., "John")
             chapter: Chapter number
@@ -994,18 +914,8 @@ class QueryDB:
         )
         self.conn.commit()
 
-    # ============================================================================
-    #   CONTEXT MANAGER
-    # ============================================================================
-
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
-
-
-if __name__ == "__main__":
-    # Database reset script - use with caution!
-    db = QueryDB()
-    
