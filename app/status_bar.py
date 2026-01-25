@@ -4,15 +4,17 @@ Status bar component for clible.
 Displays current user and active session in the terminal.
 """
 
+from rich.align import Align
+from rich.panel import Panel
+
 from app.db.queries import QueryDB
 from app.state import AppState
 from app.ui import console
-from rich.panel import Panel
-from rich.align import Align
 
 
 class StatusBar:
     """Status bar that displays the current session and user information."""
+
     def __init__(self):
         self.current_session = None
         self.current_user = None
@@ -21,13 +23,11 @@ class StatusBar:
         """Update the status bar with the current session and user information."""
         state = AppState()
 
-        # Resolve current user
         self.current_user = None
         if state.current_user_id:
             with QueryDB() as db:
                 self.current_user = db.get_user_by_id(state.current_user_id)
 
-        # Resolve current session
         self.current_session = None
         if state.current_session_id:
             with QueryDB() as db:

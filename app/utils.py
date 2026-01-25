@@ -6,6 +6,7 @@ input handling) with UI rendering. Pure rendering functions are in ui.py.
 """
 
 from loguru import logger
+
 from app.db.queries import QueryDB
 from app.ui import (
     console,
@@ -20,7 +21,7 @@ from app.ui import (
 def handle_search_word() -> list[VerseMatch]:
     """
     Handle the word search workflow: prompt user, query database, and render results.
-    
+
     Returns:
         List of verse match dictionaries
     """
@@ -36,7 +37,7 @@ def handle_search_word() -> list[VerseMatch]:
     if not results:
         logger.info(f'No matches found for "{word_input}"')
         return results
-    
+
     render_search_results_info(results, word_input)
 
     spacing_between_sections()

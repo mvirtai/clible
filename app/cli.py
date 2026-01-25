@@ -24,32 +24,26 @@ from app.status_bar import StatusBar
 def run_main_menu(output: str, username: str):
     """
     Main menu loop with integrated session management.
-    
+
     Args:
         output: Output format for display
         username: Username for authentication
     """
-    # Initialize SessionManager
     session_manager = SessionManager()
     status_bar = StatusBar()
 
-    # Auto-login: get or create user and authenticate
     with QueryDB() as db:
         user_id = db.get_or_create_default_user(username)
-    
+
     if not user_id:
         console.print("[red]❌ Failed to authenticate user.[/red]")
         return
-    
-    # Set authenticated user in AppState
+
     session_manager.state.current_user_id = user_id
-    
-    # Show login status
+
     console.print(f"[dim]👤 Logged in as: [bold]{username}[/bold][/dim]\n")
 
-
     while True:
-        # Refresh status on every loop so returning from submenus shows latest state
         status_bar.run()
         spacing_before_menu()
         choice = prompt_menu_choice(MAIN_MENU)

@@ -9,6 +9,7 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
+
 from loguru import logger
 
 from app.db.queries import QueryDB
@@ -21,26 +22,24 @@ class AnalysisTracker:
     Automatically saves:
       - Analysis metadata
       - Results (word frequencies, phrases, stats)
-      - Visualzation paths
+      - Visualization paths
     """
 
     def __init__(self, user_id: str = None, session_id: str = None, db_path=None):
         self.user_id = user_id
         self.session_id = session_id
         self.db_path = db_path
-    
 
     def _get_db(self):
         """
         Get QueryDB instance with appropriate db_path.
 
-        if db_path is None, uses the default DB_PATH from QueryDB.
-        If db_path is set (e.g. for testing), uses that path,
+        If db_path is None, uses the default DB_PATH from QueryDB.
+        If db_path is set (e.g. for testing), uses that path.
         """
         if self.db_path is None:
             return QueryDB()
         return QueryDB(self.db_path)
-
 
     def save_word_frequency_analysis(
         self,
@@ -62,19 +61,14 @@ class AnalysisTracker:
             verse_count: Number of verses analyzed
             chart_paths: Optional dict with 'word_freq' and 'vocab_info' paths
         """
-  
-        # 1. Generate ID
         analysis_id = uuid.uuid4().hex[:8]
 
         with self._get_db() as db:
-
-            # 2. Get user name if user_id is available
-            user_name = "Unknown"  # Default for NOT NULL constraint
+            user_name = "Unknown"
             if self.user_id:
                 user = db.get_user_by_id(self.user_id)
                 user_name = user["name"] if user else "Unknown"
-            
-            # 3. Insert into analysis history
+
             db.cur.execute("""
                 INSERT INTO analysis_history (
                     id, user_id, session_id, user_name, analysis_type,
@@ -91,7 +85,6 @@ class AnalysisTracker:
                 verse_count
             ))
 
-            # 4. Insert word_freq results
             word_freq_id = uuid.uuid4().hex[:8]
             db.cur.execute("""
                 INSERT INTO analysis_results (
@@ -105,7 +98,6 @@ class AnalysisTracker:
                 chart_paths.get('word_freq') if chart_paths else None
             ))
 
-            # 5. Insert vocab_stats results
             vocab_stats_id = uuid.uuid4().hex[:8]
             db.cur.execute("""
                 INSERT INTO analysis_results (
@@ -119,13 +111,10 @@ class AnalysisTracker:
                 chart_paths.get('vocab_stats') if chart_paths else None
             ))
 
-            # Commit all changes
             db.conn.commit()
-        
-        # 6. Log and return
+
         logger.info(f"Saved word frequency analysis: {analysis_id}")
         return analysis_id
-
 
     def save_phrase_analysis(
         self,
@@ -138,7 +127,7 @@ class AnalysisTracker:
     ) -> str:
         """
         Save phrase analysis (bigrams and trigrams) to database.
-        
+
         Args:
             bigrams: List of (bigram_phrase, count) tuples
             trigrams: List of (trigram_phrase, count) tuples
@@ -146,21 +135,18 @@ class AnalysisTracker:
             scope_details: Dict describing the scope
             verse_count: Number of verses analyzed
             chart_paths: Optional dict with 'bigram' and 'trigram' paths
-            
+
         Returns:
             analysis_id: Unique ID for this analysis
         """
-        # Generate unique analysis ID
         analysis_id = uuid.uuid4().hex[:8]
 
         with self._get_db() as db:
-            # Get user name if user_id is available
-            user_name = "Unknown"  # Default for NOT NULL constraint
+            user_name = "Unknown"
             if self.user_id:
                 user = db.get_user_by_id(self.user_id)
                 user_name = user["name"] if user else "Unknown"
 
-            # Insert metadata into analysis_history
             db.cur.execute("""
                 INSERT INTO analysis_history (
                     id, user_id, session_id, user_name, analysis_type,
@@ -176,8 +162,7 @@ class AnalysisTracker:
                 json.dumps(scope_details),
                 verse_count
             ))
-            
-            # Insert bigram results
+
             bigram_id = uuid.uuid4().hex[:8]
             db.cur.execute("""
                 INSERT INTO analysis_results (
@@ -190,8 +175,7 @@ class AnalysisTracker:
                 json.dumps(bigrams),
                 chart_paths.get('bigram') if chart_paths else None
             ))
-            
-            # Insert trigram results
+
             trigram_id = uuid.uuid4().hex[:8]
             db.cur.execute("""
                 INSERT INTO analysis_results (
@@ -204,13 +188,12 @@ class AnalysisTracker:
                 json.dumps(trigrams),
                 chart_paths.get('trigram') if chart_paths else None
             ))
-            
-            # Commit all changes
+
             db.conn.commit()
-        
+
         logger.info(f"Saved phrase analysis: {analysis_id}")
         return analysis_id
-    
+
     def save_translation_comparison(
         self,
         comparison_data: dict,
@@ -220,7 +203,7 @@ class AnalysisTracker:
     ) -> str:
         """
         Save translation comparison analysis to database.
-        
+
         Args:
             comparison_data: Dictionary containing translation comparison data with:
                 - "reference": Verse reference string
@@ -229,21 +212,18 @@ class AnalysisTracker:
             scope_type: 'translation' or other scope type
             scope_details: Dict describing the scope (e.g., {"translation1": "web", "translation2": "kjv"})
             verse_count: Number of verses compared
-            
+
         Returns:
             analysis_id: Unique ID for this analysis
         """
-        # Generate unique analysis ID
         analysis_id = uuid.uuid4().hex[:8]
 
         with self._get_db() as db:
-            # Get user name if user_id is available
-            user_name = "Unknown"  # Default for NOT NULL constraint
+            user_name = "Unknown"
             if self.user_id:
                 user = db.get_user_by_id(self.user_id)
                 user_name = user["name"] if user else "Unknown"
 
-            # Insert metadata into analysis_history
             db.cur.execute("""
                 INSERT INTO analysis_history (
                     id, user_id, session_id, user_name, analysis_type,
@@ -259,8 +239,7 @@ class AnalysisTracker:
                 json.dumps(scope_details),
                 verse_count
             ))
-            
-            # Insert translation comparison results
+
             comparison_id = uuid.uuid4().hex[:8]
             db.cur.execute("""
                 INSERT INTO analysis_results (
@@ -271,15 +250,14 @@ class AnalysisTracker:
                 analysis_id,
                 "translation_comparison",
                 json.dumps(comparison_data),
-                None  # No chart path for translation comparisons
+                None
             ))
-            
-            # Commit all changes
+
             db.conn.commit()
-        
+
         logger.info(f"Saved translation comparison: {analysis_id}")
         return analysis_id
-    
+
     def get_analysis_history(
         self,
         limit: int = 10,
@@ -289,23 +267,20 @@ class AnalysisTracker:
     ) -> list[dict]:
         """
         Get analysis history with optional filtering.
-        
+
         Args:
             limit: Max number of results to return
             analysis_type: Filter by analysis type ('word_frequency', 'phrase_analysis')
             scope_type: Filter by scope type ('query', 'session', 'book', 'multi_query')
             session_id: Filter by session ID (None = all sessions)
-            
+
         Returns:
             List of analysis metadata dictionaries, ordered by most recent first
         """
         with self._get_db() as db:
-            # Build dynamic query with optional filters
             query = "SELECT * FROM analysis_history WHERE 1=1"
             params = []
-            
-  
-            # Filter by user if user_id is set
+
             if self.user_id:
                 query += " AND user_id = ?"
                 params.append(self.user_id)
@@ -313,34 +288,30 @@ class AnalysisTracker:
             if session_id:
                 query += " AND session_id = ?"
                 params.append(session_id)
-            
-            # Filter by analysis_type if provided
+
             if analysis_type:
                 query += " AND analysis_type = ?"
                 params.append(analysis_type)
-            
-            # Filter by scope_type if provided
+
             if scope_type:
                 query += " AND scope_type = ?"
                 params.append(scope_type)
-            
-            # Order by most recent first (with ROWID as tiebreaker for same timestamp)
+
             query += " ORDER BY created_at DESC, ROWID DESC LIMIT ?"
             params.append(limit)
-            
+
             db.cur.execute(query, tuple(params))
             rows = db.cur.fetchall()
-            
-            # Convert Row objects to dictionaries
+
             return [dict(row) for row in rows]
-    
+
     def get_analysis_results(self, analysis_id: str) -> dict | None:
         """
         Get complete analysis with metadata and all results.
-        
+
         Args:
             analysis_id: Unique ID of the analysis to retrieve
-            
+
         Returns:
             Dictionary containing:
             - All analysis_history fields (id, analysis_type, scope_type, etc.)
@@ -349,9 +320,8 @@ class AnalysisTracker:
             Returns None if analysis not found.
         """
         with self._get_db() as db:
-            # JOIN analysis_history and analysis_results to get complete data
             db.cur.execute("""
-                SELECT 
+                SELECT
                     h.*,
                     r.result_type,
                     r.result_data,
@@ -360,14 +330,12 @@ class AnalysisTracker:
                 LEFT JOIN analysis_results r ON h.id = r.analysis_id
                 WHERE h.id = ?
             """, (analysis_id,))
-            
+
             rows = db.cur.fetchall()
-            
-            # If no rows found, analysis doesn't exist
+
             if not rows:
                 return None
-            
-            # Build analysis dictionary from first row (metadata)
+
             first_row = rows[0]
             analysis = {
                 "id": first_row["id"],
@@ -381,18 +349,13 @@ class AnalysisTracker:
                 "results": {},
                 "chart_paths": {}
             }
-            
-            # Process all result rows and deserialize JSON data
+
             for row in rows:
-                if row["result_type"]:  # Result exists (LEFT JOIN might have NULLs)
-                    # Deserialize JSON string to Python object
+                if row["result_type"]:
                     result_data = json.loads(row["result_data"])
                     analysis["results"][row["result_type"]] = result_data
-                    
-                    # Add chart path if it exists
+
                     if row["chart_path"]:
                         analysis["chart_paths"][row["result_type"]] = row["chart_path"]
-            
-            return analysis
-    
 
+            return analysis
